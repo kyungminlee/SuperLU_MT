@@ -21,9 +21,8 @@ PLAT = _PTHREAD
 #
 TMGLIB       	= libtmglib$(PLAT).a
 SUPERLULIB   	= libsuperlu_mt$(PLAT).a
-BLASLIB		= ../lib/libblas$(PLAT).a
-# BLASDEF	        = -DUSE_VENDOR_BLAS
-# BLASLIB		= -lblas
+BLASDEF	        = -DUSE_VENDOR_BLAS
+BLASLIB		= -lblas
 MATHLIB		= -lm 
 MPLIB		= -lpthread
 

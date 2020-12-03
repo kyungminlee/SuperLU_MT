@@ -31,7 +31,7 @@ SUPERLULIB   = libsuperlu_mt$(PLAT).a
 # which may be slower than ESSL
 #
 BLASDEF	  = -DUSE_VENDOR_BLAS
-BLASLIB   = -lsci_pgi
+BLASLIB   =
 MATHLIB	  = -lm 
 MPLIB	  = -lpthread
 
