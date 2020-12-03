@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "pdsp_defs.h"
-#include "util.h"
-#include "Cnames.h"
+#include "slu_mt_util.h"
+#include "slu_mt_Cnames.h"
 
 void
 c_bridge_pdgssv_(int *nprocs, int *n, int *nnz, int *nrhs, double *values,
@@ -31,8 +31,8 @@ c_bridge_pdgssv_(int *nprocs, int *n, int *nnz, int *nrhs, double *values,
 			   SLU_NC, SLU_D, SLU_GE);
     dCreate_Dense_Matrix(&B, *n, *nrhs, b, *ldb, SLU_DN, SLU_D, SLU_GE);
 
-    if ( !(perm_r = intMalloc(*n)) ) ABORT("Malloc fails for perm_r[].");
-    if ( !(perm_c = intMalloc(*n)) ) ABORT("Malloc fails for perm_c[].");
+    if ( !(perm_r = intMalloc(*n)) ) SUPERLU_ABORT("Malloc fails for perm_r[].");
+    if ( !(perm_c = intMalloc(*n)) ) SUPERLU_ABORT("Malloc fails for perm_c[].");
 
     /*
      * Get column permutation vector perm_c[], according to permc_spec:
@@ -56,7 +56,7 @@ c_bridge_pdgssv_(int *nprocs, int *n, int *nnz, int *nrhs, double *values,
     	printf("#NZ in factor U = %d\n", Ustore->nnz);
     	printf("#NZ in L+U = %d\n", Lstore->nnz + Ustore->nnz - L.ncol);
 	
-	superlu_QuerySpace(*nprocs, &L, &U, panel_size, &superlu_memusage);
+	superlu_dQuerySpace(*nprocs, &L, &U, panel_size, &superlu_memusage);
 	printf("L\\U MB %.3f\ttotal MB needed %.3f\texpansions %d\n",
 	       superlu_memusage.for_lu/1e6, superlu_memusage.total_needed/1e6,
 	       superlu_memusage.expansions);
@@ -64,7 +64,7 @@ c_bridge_pdgssv_(int *nprocs, int *n, int *nnz, int *nrhs, double *values,
     } else {
 	printf("dgssv() error returns INFO= %d\n", *info);
 	if ( info <= n ) { /* factorization completes */
-	    superlu_QuerySpace(*nprocs, &L, &U, panel_size, &superlu_memusage);
+	    superlu_dQuerySpace(*nprocs, &L, &U, panel_size, &superlu_memusage);
 	    printf("L\\U MB %.3f\ttotal MB needed %.3f\texpansions %d\n",
 		   superlu_memusage.for_lu/1e6, 
 		   superlu_memusage.total_needed/1e6,

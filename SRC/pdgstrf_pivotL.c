@@ -1,3 +1,4 @@
+
 #include <math.h>
 #include <stdlib.h>
 #include "pdsp_defs.h"
@@ -18,10 +19,10 @@ pdgstrf_pivotL(
        )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -52,9 +53,10 @@ pdgstrf_pivotL(
     register int lptr;  /* the starting subscript of the supernode */
     register int pivptr, old_pivptr, diag, diagind;
     register int isub, icol, k, itemp;
-    register double pivmax, temp, thresh;
+    register double pivmax, rtemp, thresh;
     double       *lu_sup_ptr; 
     double       *lu_col_ptr;
+    double	temp;
     int          *lsub_ptr;
     int          *lsub;
     double       *lusup;
@@ -87,9 +89,9 @@ pdgstrf_pivotL(
     diag = EMPTY;
     old_pivptr = nsupc;
     for (isub = nsupc; isub < nsupr; ++isub) {
-	temp = fabs (lu_col_ptr[isub]);
-	if ( temp > pivmax ) {
-	    pivmax = temp;
+        rtemp = fabs (lu_col_ptr[isub]);
+	if ( rtemp > pivmax ) {
+	    pivmax = rtemp;
 	    pivptr = isub;
 	}
 	if ( *usepr == YES && lsub_ptr[isub] == *pivrow ) old_pivptr = isub;
@@ -109,8 +111,8 @@ pdgstrf_pivotL(
     
     /* Choose appropriate pivotal element by our policy. */
     if ( *usepr == YES ) {
-	temp = lu_col_ptr[old_pivptr];
-	if ( temp != 0.0 && fabs(temp) >= thresh )
+        rtemp = fabs (lu_col_ptr[old_pivptr]);
+	if ( rtemp != 0.0 && rtemp >= thresh )
 	    pivptr = old_pivptr;
 	else
 	    *usepr = NO;
@@ -118,8 +120,8 @@ pdgstrf_pivotL(
     if ( *usepr == NO ) {
 	/* Can we use diagonal as pivot? */
 	if ( diag >= 0 ) { /* diagonal exists */
-	    temp = lu_col_ptr[diag];
-	    if ( temp != 0.0 && fabs(temp) >= thresh ) pivptr = diag;
+            rtemp = fabs (lu_col_ptr[diag]);
+            if ( rtemp != 0.0 && rtemp >= thresh ) pivptr = diag;
 	}
 	*pivrow = lsub_ptr[pivptr];
     }
@@ -148,11 +150,12 @@ pdgstrf_pivotL(
 
     
     /* CDIV operation */
-    Gstat->procstat[pnum].fcops += nsupr - nsupc;
 /*    ops[FACT] += nsupr - nsupc;*/
+    Gstat->procstat[pnum].fcops += nsupr - nsupc;
+
     temp = 1.0 / lu_col_ptr[nsupc];
-    for (k = nsupc+1; k < nsupr; k++) 
-	lu_col_ptr[k] *= temp;
+    for (k = nsupc+1; k < nsupr; k++)
+        lu_col_ptr[k] *= temp;
 
 #ifdef CHK_PIVOT
     printf("After cdiv: col %d\n", jcol);

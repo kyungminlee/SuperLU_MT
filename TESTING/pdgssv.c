@@ -1,21 +1,22 @@
+
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 void
 pdgssv(int nprocs, SuperMatrix *A, int *perm_c, int *perm_r, 
        SuperMatrix *L, SuperMatrix *U, SuperMatrix *B, int *info )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
  *
- * pdgssv() solves the system of linear equations A*X=B, using the parallel
- * LU factorization routine pdgstrf(). It performs the following steps:
+ * PDGSSV solves the system of linear equations A*X=B, using the parallel
+ * LU factorization routine PDGSTRF. It performs the following steps:
  *
  *   1. If A is stored column-wise (A->Stype = NC):
  *
@@ -122,11 +123,12 @@ pdgssv(int nprocs, SuperMatrix *A, int *perm_c, int *perm_r,
     SuperMatrix *AA; /* A in NC format used by the factorization routine.*/
     SuperMatrix AC; /* Matrix postmultiplied by Pc */
     int i, n, panel_size, relax;
+    fact_t   fact;
     yes_no_t refact, usepr;
     double diag_pivot_thresh, drop_tol;
     void *work;
     int lwork;
-    pdgstrf_options_t pdgstrf_options;
+    superlumt_options_t superlumt_options;
     Gstat_t  Gstat;
     double   t; /* Temporary time */
     double   *utime;
@@ -143,7 +145,7 @@ pdgssv(int nprocs, SuperMatrix *A, int *perm_c, int *perm_r,
 	      (A->Stype != SLU_NC && A->Stype != SLU_NR) ||
 	      A->Dtype != SLU_D || A->Mtype != SLU_GE )
 	*info = -2;
-    else if ( B->ncol < 0 || Bstore->lda < MAX(1, A->nrow) ) *info = -7;
+    else if (B->ncol < 0 || Bstore->lda < SUPERLU_MAX(1, A->nrow)) *info = -7;
     if ( *info != 0 ) {
         i = -(*info);
 	xerbla_("pdgssv", &i);
@@ -159,15 +161,16 @@ pdgssv(int nprocs, SuperMatrix *A, int *perm_c, int *perm_r,
     }
 #endif
 
-    refact = NO;
-    trans  = NOTRANS;
-    panel_size = sp_ienv(1);
-    relax = sp_ienv(2);
-    diag_pivot_thresh = 1.0;
-    usepr = NO;
-    drop_tol = 0.0;
-    work = NULL;
-    lwork = 0;
+    fact               = EQUILIBRATE;
+    refact             = NO;
+    trans              = NOTRANS;
+    panel_size         = sp_ienv(1);
+    relax              = sp_ienv(2);
+    diag_pivot_thresh  = 1.0;
+    usepr              = NO;
+    drop_tol           = 0.0;
+    work               = NULL;
+    lwork              = 0;
 
     /* ------------------------------------------------------------
        Allocate storage and initialize statistics variables. 
@@ -191,19 +194,19 @@ pdgssv(int nprocs, SuperMatrix *A, int *perm_c, int *perm_r,
     } else if ( A->Stype == SLU_NC ) AA = A;
 
     /* ------------------------------------------------------------
-       Initialize the option structure pdgstrf_options using the
+       Initialize the option structure superlumt_options using the
        user-input parameters;
        Apply perm_c to the columns of original A to form AC.
        ------------------------------------------------------------*/
-    pdgstrf_init(nprocs, refact, panel_size, relax,
+    pdgstrf_init(nprocs, fact, trans, refact, panel_size, relax,
 		 diag_pivot_thresh, usepr, drop_tol, perm_c, perm_r,
-		 work, lwork, AA, &AC, &pdgstrf_options, &Gstat);
+		 work, lwork, AA, &AC, &superlumt_options, &Gstat);
 
     /* ------------------------------------------------------------
        Compute the LU factorization of A.
        The following routine will create nprocs threads.
        ------------------------------------------------------------*/
-    pdgstrf(&pdgstrf_options, &AC, perm_r, L, U, &Gstat, info);
+    pdgstrf(&superlumt_options, &AC, perm_r, L, U, &Gstat, info);
 
     flopcnt = 0;
     for (i = 0; i < nprocs; ++i) flopcnt += Gstat.procstat[i].fcops;
@@ -230,7 +233,7 @@ pdgssv(int nprocs, SuperMatrix *A, int *perm_c, int *perm_r,
     /* ------------------------------------------------------------
        Deallocate storage after factorization.
        ------------------------------------------------------------*/
-    pdgstrf_finalize(&pdgstrf_options, &AC);
+    pxgstrf_finalize(&superlumt_options, &AC);
     if ( A->Stype == SLU_NR ) {
 	Destroy_SuperMatrix_Store(AA);
 	SUPERLU_FREE(AA);

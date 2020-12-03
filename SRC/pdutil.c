@@ -1,8 +1,9 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  */
 #include <math.h>
@@ -48,6 +49,46 @@ dCreate_CompCol_Permuted(SuperMatrix *A, int m, int n, int nnz, double *nzval,
     Astore->colbeg = colbeg;
     Astore->colend = colend;
 }
+/*
+ * Convert a row compressed storage into a column compressed storage.
+ */
+void
+dCompRow_to_CompCol(int m, int n, int nnz, 
+		    double *a, int *colind, int *rowptr,
+		    double **at, int **rowind, int **colptr)
+{
+    register int i, j, col, relpos;
+    int *marker;
+
+    /* Allocate storage for another copy of the matrix. */
+    *at = (double *) doubleMalloc(nnz);
+    *rowind = (int *) intMalloc(nnz);
+    *colptr = (int *) intMalloc(n+1);
+    marker = (int *) intCalloc(n);
+    
+    /* Get counts of each column of A, and set up column pointers */
+    for (i = 0; i < m; ++i)
+	for (j = rowptr[i]; j < rowptr[i+1]; ++j) ++marker[colind[j]];
+    (*colptr)[0] = 0;
+    for (j = 0; j < n; ++j) {
+	(*colptr)[j+1] = (*colptr)[j] + marker[j];
+	marker[j] = (*colptr)[j];
+    }
+
+    /* Transfer the matrix into the compressed column storage. */
+    for (i = 0; i < m; ++i) {
+	for (j = rowptr[i]; j < rowptr[i+1]; ++j) {
+	    col = colind[j];
+	    relpos = marker[col];
+	    (*rowind)[relpos] = i;
+	    (*at)[relpos] = a[j];
+	    ++marker[col];
+	}
+    }
+
+    SUPERLU_FREE(marker);
+}
+
 
 /* Copy matrix A into matrix B. */
 void
@@ -233,7 +274,6 @@ dprint_lu_col(int pnum, char *msg, int pcol, int jcol, int w, int pivrow,
 	   pnum, Glu->xusub[jcol], Glu->xusub_end[jcol]);
     for (i = Glu->xusub[jcol]; i < Glu->xusub_end[jcol]; i++)
 	printf("(%d)\t%d\t%8e\n", pnum, Glu->usub[i], Glu->ucol[i]);
-    
     fsupc = xsup[supno[jcol]];
     k = xlusup[jcol];
     printf("(%d)\tL-col in s-node: xlsub %d - %d, xlusup %d - %d\n",
@@ -244,6 +284,7 @@ dprint_lu_col(int pnum, char *msg, int pcol, int jcol, int w, int pivrow,
     fflush(stdout);
 }
 
+/*Dan fix above printf 's*/
 
 /*
  * Check whether vec[*] == 0. For the two vectors dense[*] and tempv[*],
@@ -257,15 +298,15 @@ dcheck_zero_vec(int pnum, char *msg, int n, double *vec)
 
     nonzero = FALSE;
     for (i = 0; i < n; ++i) {
-	if (vec[i] != 0.0) {
-	    printf("(%d) vec[%d] = %.10e; should be zero!\n",
-		   pnum, i, vec[i]);
-	    nonzero = TRUE;
-	}
+        if (vec[i] != 0.0) {
+            printf("(%d) vec[%d] = %.10e; should be zero!\n",
+                   pnum, i, vec[i]);
+            nonzero = TRUE;
+        }
     }
     if ( nonzero ) {
 	printf("(%d) %s\n", pnum, msg);
-	ABORT("Not a zero vector.");
+	SUPERLU_ABORT("Not a zero vector.");
     }
 }
 
@@ -274,9 +315,11 @@ void
 dGenXtrue(int n, int nrhs, double *x, int ldx)
 {
     int  i, j;
-    for (j = 0; j < nrhs; ++j)
-	for (i = 0; i < n; ++i)
-	    x[i + j*ldx] = 1.0;/* + (double)(i+1.)/n;*/
+    for (j = 0; j < nrhs; ++j) {
+	for (i = 0; i < n; ++i) {
+            x[i + j*ldx] = 1.0;/* + (double)(i+1.)/n;*/
+        }
+    }
 }
 
 /*
@@ -289,6 +332,8 @@ dFillRHS(trans_t trans, int nrhs, double *x, int ldx, SuperMatrix *A, SuperMatri
     double   *Aval;
     DNformat *Bstore;
     double   *rhs;
+    double one = 1.0;
+    double zero = 0.0;
     int      ldc;
     char     trans_c[1];
 
@@ -301,8 +346,8 @@ dFillRHS(trans_t trans, int nrhs, double *x, int ldx, SuperMatrix *A, SuperMatri
     if ( trans == NOTRANS ) *trans_c = 'N';
     else *trans_c = 'T';
     
-    sp_dgemm(trans_c, A->nrow, nrhs, A->ncol, 1.0, A,
-	     x, ldx, 0.0, rhs, ldc);
+    sp_dgemm(trans_c, A->nrow, nrhs, A->ncol, one, A,
+	     x, ldx, zero, rhs, ldc);
 }
 
 /* 
@@ -334,8 +379,8 @@ void dinf_norm_error(int nrhs, SuperMatrix *X, double *xtrue)
       soln_work = &Xmat[j*Xstore->lda];
       err = xnorm = 0.0;
       for (i = 0; i < X->nrow; i++) {
-	err = MAX(err, fabs(soln_work[i] - xtrue[i]));
-	xnorm = MAX(xnorm, fabs(soln_work[i]));
+        err = SUPERLU_MAX(err, fabs(soln_work[i] - xtrue[i]));
+        xnorm = SUPERLU_MAX(xnorm, fabs(soln_work[i]));
       }
       err = err / xnorm;
       printf("||X - Xtrue||/||X|| = %e\n", err);
@@ -346,9 +391,9 @@ void dinf_norm_error(int nrhs, SuperMatrix *X, double *xtrue)
 
 /* Print performance of the code. */
 void
-dPrintPerf(SuperMatrix *L, SuperMatrix *U, superlu_memusage_t *superlu_memusage, double rpg, 
-	double rcond, double *ferr, double *berr, char *equed,
-	Gstat_t *Gstat)
+dPrintPerf(SuperMatrix *L, SuperMatrix *U, superlu_memusage_t *superlu_memusage, 
+	double rpg, double rcond, double *ferr,
+	double *berr, char *equed, Gstat_t *Gstat)
 {
     SCPformat *Lstore;
     NCPformat *Ustore;

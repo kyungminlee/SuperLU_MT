@@ -1,6 +1,5 @@
 
 #include "pdsp_defs.h"
-#include "util.h"
 
 
 #if ( MACH==CRAY_PVP )
@@ -15,10 +14,11 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
        int *perm_r, int *perm_c, SuperMatrix *B, Gstat_t *Gstat, int *info)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
+ *
  *
  * Purpose
  * =======
@@ -61,7 +61,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
  *
  * Gstat   (output) Gstat_t*
  *          Record all the statistics about the triangular solves; 
- *          See Gstat_t structure defined in util.h.
+ *          See Gstat_t structure defined in slu_mt_util.h.
  *
  * info    (output) Diagnostics
  * 	   = 0: successful exit
@@ -71,11 +71,12 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 #if ( MACH==CRAY_PVP )
     _fcd ftcs1, ftcs2, ftcs3, ftcs4;
 #endif
+
 #ifdef USE_VENDOR_BLAS
     int      incx = 1, incy = 1;
     double   alpha = 1.0, beta = 1.0;
 #endif
-    
+
     register int j, k, jcol, iptr, luptr, ksupno, istart, irow, bptr;
     register int fsupc, nsuper;
     int      i, n, nsupc, nsupr, nrow, nrhs, ldb;
@@ -86,7 +87,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
     double   *Lval, *Uval, *Bmat;
     double   *work, *work_col, *rhs_work, *soln;
     flops_t  solve_ops;
-    void print_soln();
+    void dprint_soln();
 
     /* Test input parameters ... */
     *info = 0;
@@ -96,7 +97,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
     if ( trans != NOTRANS && trans != TRANS ) *info = -1;
     else if ( L->nrow != L->ncol || L->nrow < 0 ) *info = -3;
     else if ( U->nrow != U->ncol || U->nrow < 0 ) *info = -4;
-    else if ( ldb < MAX(0, L->nrow) ) *info = -6;
+    else if ( ldb < SUPERLU_MAX(0, L->nrow) ) *info = -6;
     if ( *info ) {
         i = -(*info);
 	xerbla_("dgstrs", &i);
@@ -105,9 +106,9 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 
     n = L->nrow;
     work = doubleCalloc(n * nrhs);
-    if ( !work ) ABORT("Malloc fails for local work[].");
+    if ( !work ) SUPERLU_ABORT("Malloc fails for local work[].");
     soln = doubleMalloc(n);
-    if ( !soln ) ABORT("Malloc fails for local soln[].");
+    if ( !soln ) SUPERLU_ABORT("Malloc fails for local soln[].");
 
     Bmat = Bstore->nzval;
     Lstore = L->Store;
@@ -147,7 +148,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 		    for (iptr=istart+1; iptr < L_SUB_END(fsupc); iptr++){
 			irow = L_SUB(iptr);
 			++luptr;
-			rhs_work[irow] -= rhs_work[fsupc] * Lval[luptr];
+                        rhs_work[irow] -= rhs_work[fsupc] * Lval[luptr];
 		    }
 		}
 	    } else {
@@ -177,8 +178,8 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 		    iptr = istart + nsupc;
 		    for (i = 0; i < nrow; i++) {
 			irow = L_SUB(iptr);
-			rhs_work[irow] -= work_col[i]; /* Scatter */
-			work_col[i] = 0.0;
+                        rhs_work[irow] -= work_col[i]; /* Scatter */
+                        work_col[i] = 0.0;
 			iptr++;
 		    }
 		}
@@ -192,8 +193,8 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 		    iptr = istart + nsupc;
 		    for (i = 0; i < nrow; i++) {
 			irow = L_SUB(iptr);
-			rhs_work[irow] -= work[i];
-			work[i] = 0.0;
+                        rhs_work[irow] -= work[i];
+                        work[i] = 0.0;
 			iptr++;
 		    }
 		}
@@ -203,7 +204,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 
 #if ( DEBUGlevel>=2 )
   	printf("After L-solve: y=\n");
-	print_soln(n, nrhs, Bmat);
+	dprint_soln(n, nrhs, Bmat);
 #endif
 
 	/*
@@ -225,7 +226,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 	    if ( nsupc == 1 ) {
 		rhs_work = &Bmat[0];
 		for (j = 0; j < nrhs; j++) {
-		    rhs_work[fsupc] /= Lval[luptr];
+                    rhs_work[fsupc] /= Lval[luptr];
 		    rhs_work += ldb;
 		}
 	    } else {
@@ -251,10 +252,10 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 	    for (j = 0, bptr = 0; j < nrhs; ++j, bptr += ldb) {
 		rhs_work = &Bmat[bptr];
 		for (jcol = fsupc; jcol < fsupc + nsupc; jcol++) {
-		    solve_ops += 2*(U_NZ_END(jcol) - U_NZ_START(jcol));
+                    solve_ops += 2*(U_NZ_END(jcol) - U_NZ_START(jcol));
 		    for (i = U_NZ_START(jcol); i < U_NZ_END(jcol); i++ ){
 			irow = U_SUB(i);
-			rhs_work[irow] -= rhs_work[jcol] * Uval[i];
+                        rhs_work[irow] -= rhs_work[jcol] * Uval[i];
 		    }
 		}
 	    }
@@ -263,7 +264,7 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 
 #if ( DEBUGlevel>=2 )
   	printf("After U-solve: x=\n");
-	print_soln(n, nrhs, Bmat);
+	dprint_soln(n, nrhs, Bmat);
 #endif
 
 	/* Compute the final solution X <= Pc*X. */
@@ -281,14 +282,15 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 	    for (k = 0; k < n; k++) rhs_work[k] = soln[k];
 	}
 	
-	for (k = 0; k < nrhs; ++k) {
-	    /* Multiply by inv(U'). */
-	    sp_dtrsv("U", "T", "N", L, U, &Bmat[k*ldb], info);
-	    
-	    /* Multiply by inv(L'). */
-	    sp_dtrsv("L", "T", "U", L, U, &Bmat[k*ldb], info);
-	}
-	
+        for (k = 0; k < nrhs; ++k) {
+
+            /* Multiply by inv(U'). */
+            sp_dtrsv("U", "T", "N", L, U, &Bmat[k*ldb], info);
+
+            /* Multiply by inv(L'). */
+            sp_dtrsv("L", "T", "U", L, U, &Bmat[k*ldb], info);
+
+        }
 	/* Compute the final solution X <= Pr'*X (=inv(Pr)*X) */
 	for (i = 0, bptr = 0; i < nrhs; i++, bptr += ldb) {
 	    rhs_work = &Bmat[bptr];
@@ -304,13 +306,13 @@ dgstrs(trans_t trans, SuperMatrix *L, SuperMatrix *U,
 }
 
 /*
- * Diagnostic print of the solution vector 
+ * Diagnostic print of the solution vector
  */
 void
-print_soln(int n, int nrhs, double *soln)
+dprint_soln(int n, int nrhs, double *soln)
 {
-    register int i;
+    int i;
 
-    for (i = 0; i < n; i++) 
-  	printf("\t%d: %.10f\n", i, soln[i]);
+    for (i = 0; i < n; i++)
+	printf("\t%d: %.10f\n", i, soln[i]);
 }

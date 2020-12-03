@@ -1,3 +1,4 @@
+
 #include "pdsp_defs.h"
 
 int
@@ -21,10 +22,10 @@ pdgstrf_factor_snode(
 		     )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======

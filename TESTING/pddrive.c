@@ -1,3 +1,4 @@
+
 #include <string.h>
 #include "pdsp_defs.h"
 
@@ -13,10 +14,10 @@
 main(int argc, char *argv[])
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -36,20 +37,19 @@ main(int argc, char *argv[])
     SuperMatrix    ASAV, AC;
     int            *perm_r; /* row permutation from partial pivoting */
     int            *perm_c, *pc_save; /* column permutation */
-    int            *etree;
-    double         zero = 0.0;
+    double  zero = 0.0;
     double         *R, *C;
     double         *ferr, *berr;
     double         *rwork;
     double	   *wwork;
-    double         diag_pivot_thresh, drop_tol;
+    double          diag_pivot_thresh, drop_tol;
     void           *work;
     int            info, lwork, nrhs, panel_size, relax;
     int            nprocs, m, n, nnz;
-    double         *xact;
-    double         *rhsb, *solx, *bsav;
+    double        *xact;
+    double        *rhsb, *solx, *bsav;
     int            ldb, ldx;
-    double         rpg, rcond;
+    double          rpg, rcond;
     int            i, j, k1;
     double         rowcnd, colcnd, amax;
     int            maxsuper, rowblk, colblk;
@@ -62,7 +62,7 @@ main(int argc, char *argv[])
     double         *Afull;
     double         result[NTESTS];
     Gstat_t        Gstat;
-    pdgstrf_options_t pdgstrf_options;
+    superlumt_options_t superlumt_options;
     superlu_memusage_t superlu_memusage;
     char matrix_type[8];
     char path[3], sym[1], dist[1];
@@ -81,22 +81,22 @@ main(int argc, char *argv[])
     yes_no_t useprs[] = {YES, NO};
 
     /* Some function prototypes */
-    extern int pdgst01(int, int, SuperMatrix *, SuperMatrix *, 
-		       SuperMatrix *, int *, double *);
+    extern int pdgst01(int, int, SuperMatrix *, SuperMatrix *,
+                         SuperMatrix *, int *, int *, double *);
     extern int pdgst02(trans_t, int, int, int, SuperMatrix *, double *,
-		       int, double *, int, double *resid);
-    extern int pdgst04(int, int, double *, int, 
-		       double *, int, double rcond, double *resid);
+                         int, double *, int, double *resid);
+    extern int pdgst04(int, int, double *, int,
+                         double *, int, double rcond, double *resid);
     extern int pdgst07(trans_t, int, int, SuperMatrix *, double *, int,
-		       double *, int, double *, int, 
-		       double *, double *, double *);
-    extern int dlatb4_(char *, int *, int *, int *, char *, int *, int *, 
-	               double *, int *, double *, char *);
+                         double *, int, double *, int,
+                         double *, double *, double *);
+    extern int dlatb4_(char *, int *, int *, int *, char *, int *, int *,
+                       double *, int *, double *, char *);
     extern int dlatms_(int *, int *, char *, int *, char *, double *d,
                        int *, double *, double *, int *, int *,
                        char *, double *, int *, double *, int *);
     extern int sp_dconvert(int, int, double *, int, int, int,
-	                   double *a, int *, int *, int *);
+                           double *a, int *, int *, int *);
 
 
     /* Executable statements */
@@ -138,7 +138,7 @@ main(int argc, char *argv[])
     if ( strcmp(matrix_type, "LA") == 0 ) {
 	/* Test LAPACK matrix suite. */
 	m = n;
-	lda = MAX(n, 1);
+	lda = SUPERLU_MAX(n, 1);
 	nnz = n * n;        /* upper bound */
 	fimat = 1;
 	nimat = NTYPES;
@@ -150,42 +150,43 @@ main(int argc, char *argv[])
 	dreadhb(&m, &n, &nnz, &a, &asub, &xa);
     }
 
+    ldb  = m;
+    ldx  = n;
+
     dallocateA(n, nnz, &a_save, &asub_save, &xa_save);
     rhsb = doubleMalloc(m * nrhs);
     bsav = doubleMalloc(m * nrhs);
     solx = doubleMalloc(n * nrhs);
-    ldb  = m;
-    ldx  = n;
-    dCreate_Dense_Matrix(&B, m, nrhs, rhsb, ldb, SLU_DN, SLU_D, SLU_GE);
-    dCreate_Dense_Matrix(&X, n, nrhs, solx, ldx, SLU_DN, SLU_D, SLU_GE);
     xact = doubleMalloc(n * nrhs);
-    etree   = intMalloc(n);
-    perm_c  = intMalloc(n);
     perm_r  = intMalloc(n);
+    perm_c  = intMalloc(n);
     pc_save = intMalloc(n);
     R       = (double *) SUPERLU_MALLOC(m*sizeof(double));
     C       = (double *) SUPERLU_MALLOC(n*sizeof(double));
     ferr    = (double *) SUPERLU_MALLOC(nrhs*sizeof(double));
     berr    = (double *) SUPERLU_MALLOC(nrhs*sizeof(double));
-    j = MAX(m,n) * MAX(4,nrhs);    
+    j = SUPERLU_MAX(m,n) * SUPERLU_MAX(4,nrhs);    
     rwork   = (double *) SUPERLU_MALLOC(j*sizeof(double));
     for (i = 0; i < j; ++i) rwork[i] = 0.;
-    if ( !R ) ABORT("SUPERLU_MALLOC fails for R");
-    if ( !C ) ABORT("SUPERLU_MALLOC fails for C");
-    if ( !ferr ) ABORT("SUPERLU_MALLOC fails for ferr");
-    if ( !berr ) ABORT("SUPERLU_MALLOC fails for berr");
-    if ( !rwork ) ABORT("SUPERLU_MALLOC fails for rwork");
-    wwork = doubleCalloc( MAX(m,n) * MAX(4,nrhs) );
+    if ( !R ) SUPERLU_ABORT("SUPERLU_MALLOC fails for R");
+    if ( !C ) SUPERLU_ABORT("SUPERLU_MALLOC fails for C");
+    if ( !ferr ) SUPERLU_ABORT("SUPERLU_MALLOC fails for ferr");
+    if ( !berr ) SUPERLU_ABORT("SUPERLU_MALLOC fails for berr");
+    if ( !rwork ) SUPERLU_ABORT("SUPERLU_MALLOC fails for rwork");
+    wwork = doubleCalloc( SUPERLU_MAX(m,n) * SUPERLU_MAX(4,nrhs) );
+
+    dCreate_Dense_Matrix(&B, m, nrhs, rhsb, ldb, SLU_DN, SLU_D, SLU_GE);
+    dCreate_Dense_Matrix(&X, n, nrhs, solx, ldx, SLU_DN, SLU_D, SLU_GE);
 
     /* Fill in options used by the factorization routine. */
-    pdgstrf_options.panel_size = panel_size;
-    pdgstrf_options.relax = relax;
-    pdgstrf_options.diag_pivot_thresh = diag_pivot_thresh;
-    pdgstrf_options.drop_tol = drop_tol;
-    pdgstrf_options.perm_c = perm_c;
-    pdgstrf_options.perm_r = perm_r;
-    pdgstrf_options.work = work;
-    pdgstrf_options.lwork = lwork;
+    superlumt_options.panel_size = panel_size;
+    superlumt_options.relax = relax;
+    superlumt_options.diag_pivot_thresh = diag_pivot_thresh;
+    superlumt_options.drop_tol = drop_tol;
+    superlumt_options.perm_c = perm_c;
+    superlumt_options.perm_r = perm_r;
+    superlumt_options.work = work;
+    superlumt_options.lwork = lwork;
 
     for (i = 0; i < n; ++i) perm_c[i] = pc_save[i] = i;
 
@@ -310,31 +311,25 @@ main(int argc, char *argv[])
 			    StatAlloc(n, nprocs, panel_size, relax, &Gstat);
 			    StatInit(n, nprocs, &Gstat);
 			
-			    /* Initialize options, rreorder the matrix, 
-			       obtain the column etree. */
-			    if ( usepr ) {
-			      pdgstrf_init(nprocs, NO, panel_size, relax,
-					   0.1, NO, drop_tol,
-					   perm_c, perm_r, work, lwork,
-					   &A, &AC, &pdgstrf_options, &Gstat);
-			    } else {
-			      pdgstrf_init(nprocs, NO, panel_size, relax,
-					   diag_pivot_thresh, NO, drop_tol,
-					   perm_c, perm_r, work, lwork,
-					   &A, &AC, &pdgstrf_options, &Gstat);
-			    }
+			    /* Initialize options, reorder the matrix, 
+			       obtain the column etree. 
+                               First time always use partial pivoting. */
+		            pdgstrf_init(nprocs, fact, NOTRANS, NO, 
+                                         panel_size, relax, 1.0, NO, drop_tol,
+					 perm_c, perm_r, work, lwork,
+					 &A, &AC, &superlumt_options, &Gstat);
 
 #if ( DEBUGlevel>=1 )
 			    printf("Test PDGSTRF\n");
 #endif
 			    /* Factor the matrix AC. */
-			    pdgstrf(&pdgstrf_options, &AC, perm_r, &L, &U, 
+			    pdgstrf(&superlumt_options, &AC, perm_r, &L, &U, 
 				    &Gstat, &info);
 
 			    /* Restore parameters for subsequent factors. */
-			    pdgstrf_options.refact = refact;
-			    pdgstrf_options.usepr = usepr;
-			    pdgstrf_options.diag_pivot_thresh=diag_pivot_thresh;
+			    superlumt_options.refact = refact;
+			    superlumt_options.usepr = usepr;
+			    superlumt_options.diag_pivot_thresh=diag_pivot_thresh;
 
 			    if ( info ) { 
 			        printf("** First factor: info %d, equed %d\n",
@@ -382,7 +377,7 @@ main(int argc, char *argv[])
 				} else {
                                     /* Reconstruct matrix from factors and
 				       compute residual. */
-                                    pdgst01(m, n, &A, &L, &U, perm_r,
+                                    pdgst01(m, n, &A, &L, &U, perm_c, perm_r,
 					    &result[0]);
 
 				    nt = 1;
@@ -430,15 +425,15 @@ main(int argc, char *argv[])
 			
 			    /* Initialize more options that are changed from
 			       iteration to iteration. */
-			    pdgstrf_options.nprocs = nprocs;
-			    pdgstrf_options.fact = fact;
-			    pdgstrf_options.trans = trans;
-			    pdgstrf_options.refact = refact;
-			    pdgstrf_options.usepr = usepr;
+			    superlumt_options.nprocs = nprocs;
+			    superlumt_options.fact = fact;
+			    superlumt_options.trans = trans;
+			    superlumt_options.refact = refact;
+			    superlumt_options.usepr = usepr;
 
 			    /* Solve the system and compute the condition 
 			       number and error bounds using pdgssvx.   */
-			    pdgssvx(nprocs, &pdgstrf_options, &A, perm_c, 
+			    pdgssvx(nprocs, &superlumt_options, &A, perm_c, 
 				    perm_r, &equed, R, C, &L, &U, &B, &X,
 				    &rpg, &rcond, ferr, berr, 
 				    &superlu_memusage, &info);
@@ -458,7 +453,7 @@ main(int argc, char *argv[])
 			        if ( !prefact ) {
 				    /* Reconstruct matrix from factors and
 				       compute residual. */
-				    pdgst01(m, n, &A, &L, &U, perm_r, 
+				    pdgst01(m, n, &A, &L, &U, perm_c, perm_r, 
 					    &result[0]);
 				    k1 = 0;
 				} else {
@@ -521,9 +516,9 @@ main(int argc, char *argv[])
 			    }
 			}
 			if ( refact == YES ) {
-			    SUPERLU_FREE(pdgstrf_options.etree);
-			    SUPERLU_FREE(pdgstrf_options.colcnt_h);
-			    SUPERLU_FREE(pdgstrf_options.part_super_h);
+			    SUPERLU_FREE(superlumt_options.etree);
+			    SUPERLU_FREE(superlumt_options.colcnt_h);
+			    SUPERLU_FREE(superlumt_options.part_super_h);
 			}
 		    } /* for iusepr ... */
 		} /* for irefact ... */
@@ -554,7 +549,6 @@ main(int argc, char *argv[])
     SUPERLU_FREE (bsav);
     SUPERLU_FREE (solx);    
     SUPERLU_FREE (xact);
-    SUPERLU_FREE (etree);
     SUPERLU_FREE (perm_r);
     SUPERLU_FREE (perm_c);
     SUPERLU_FREE (pc_save);

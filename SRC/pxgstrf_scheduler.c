@@ -73,6 +73,7 @@ pxgstrf_scheduler(const int pnum, const int n, const int *etree,
     register int dad, dad_ukids, jcol, w, j;
     int *fb_cols = pxgstrf_shared->fb_cols;
     queue_t *taskq = &pxgstrf_shared->taskq;
+    Gstat_t *Gstat = pxgstrf_shared->Gstat;
 #ifdef PROFILE
     double t;
 #endif
@@ -92,7 +93,7 @@ pxgstrf_scheduler(const int pnum, const int n, const int *etree,
 
 #ifdef PROFILE
     TIC(t);
-#endif;
+#endif
 #if ( MACH==SUN )
     mutex_lock( &pxgstrf_shared->lu_locks[SCHED_LOCK] );
 #elif ( MACH==DEC || MACH==PTHREAD )
@@ -101,6 +102,8 @@ pxgstrf_scheduler(const int pnum, const int n, const int *etree,
 #pragma critical lock(pxgstrf_shared->lu_locks[SCHED_LOCK])
 #elif ( MACH==CRAY_PVP )
 #pragma _CRI guard SCHED_LOCK
+#elif ( MACH==OPENMP )
+#pragma omp critical ( SCHED_LOCK )
 #endif    
 
 {   /* ---- START CRITICAL SECTION ---- */
@@ -124,7 +127,7 @@ pxgstrf_scheduler(const int pnum, const int n, const int *etree,
 		   pnum, jcol, STATE(dad));
 #endif
 #ifdef PROFILE
-	    ++panhows[DADPAN];
+	    ++(Gstat->panhows[DADPAN]);
 #endif	    
 	} else {
 	    /* Try to get a panel from the task Q. */
@@ -142,8 +145,8 @@ pxgstrf_scheduler(const int pnum, const int n, const int *etree,
 			       pnum, jcol, STATE(jcol), j);
 #endif
 #ifdef PROFILE
-			if ( STATE( jcol ) == CANGO ) ++panhows[NOPIPE];
-			else ++panhows[PIPE];
+			if (STATE( jcol ) == CANGO) ++(Gstat->panhows[NOPIPE]);
+			else ++(Gstat->panhows[PIPE]);
 #endif			
 		        break;
 		    }
@@ -168,8 +171,8 @@ pxgstrf_scheduler(const int pnum, const int n, const int *etree,
 			   pnum, jcol, STATE(jcol), j);
 #endif
 #ifdef PROFILE
-		    if ( STATE( jcol ) == CANGO ) ++panhows[NOPIPE];
-		    else ++panhows[PIPE];
+		    if (STATE( jcol ) == CANGO) ++(Gstat->panhows[NOPIPE]);
+		    else ++(Gstat->panhows[PIPE]);
 #endif			
 		    break;
 		}

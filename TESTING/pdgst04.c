@@ -1,3 +1,4 @@
+
 #include <math.h>
 #include "pdsp_defs.h"
 
@@ -5,10 +6,10 @@ int pdgst04(int n, int nrhs, double *x, int ldx, double *xact,
 	    int ldxact, double rcond, double *resid)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  *  Purpose   
  *  =======   
@@ -90,14 +91,14 @@ int pdgst04(int n, int nrhs, double *x, int ldx, double *xact,
     for (j = 0; j < nrhs; ++j) {
 	n__1 = n;
 	ix = idamax_(&n__1, &xact[j*ldxact], &c__1);
-	xnorm = (d__1 = xact[ix-1 + j*ldxact], fabs(d__1));
+        xnorm = (d__1 = xact[ix-1 + j*ldxact], fabs(d__1));
 
 	diffnm = 0.;
 	for (i = 0; i < n; ++i) {
 	    /* Computing MAX */
 	    d__3 = diffnm;
-	    d__4 = (d__1 = x[i+j*ldx]-xact[i+j*ldxact], fabs(d__1));
-	    diffnm = MAX(d__3,d__4);
+            d__4 = (d__1 = x[i+j*ldx]-xact[i+j*ldxact], fabs(d__1));
+	    diffnm = SUPERLU_MAX(d__3,d__4);
 	}
 	if (xnorm <= 0.) {
 	    if (diffnm > 0.) {
@@ -106,7 +107,7 @@ int pdgst04(int n, int nrhs, double *x, int ldx, double *xact,
 	} else {
 	    /* Computing MAX */
 	    d__1 = *resid, d__2 = diffnm / xnorm * rcond;
-	    *resid = MAX(d__1,d__2);
+	    *resid = SUPERLU_MAX(d__1,d__2);
 	}
     }
     if (*resid * eps < 1.) {

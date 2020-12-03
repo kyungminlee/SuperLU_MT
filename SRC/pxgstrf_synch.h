@@ -1,8 +1,8 @@
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  */
 
@@ -57,6 +57,14 @@ typedef struct {
 			 *      the panel can be taken as CANPIPE
 			 */
 } pan_status_t;
+
+
+/* The structure to record a relaxed supernode. */
+typedef struct {
+    int fcol;    /* first column of the relaxed supernode */
+    int size;    /* size of the relaxed supernode */
+} pxgstrf_relax_t;
+
 
 
 /* *********************

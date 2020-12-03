@@ -1,14 +1,15 @@
+
 #include <math.h>
 #include "pdsp_defs.h"
 
 int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L, 
-	    SuperMatrix *U, int *perm_r, double *resid)
+	    SuperMatrix *U, int *perm_c, int *perm_r, double *resid)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  *  Purpose   
  *  =======   
@@ -35,8 +36,11 @@ int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L,
  *   U      (input) SuperMatrix *, dimension (U->nrow, U->ncol)
  *          The factor matrix U.
  *
+ *   perm_c (input) INT array, dimension (N)
+ *          The column permutation from DGSTRF.   
+ *
  *   perm_r (input) INT array, dimension (M)
- *          The pivot indices from DGSTRF.   
+ *          The pivot indices from DGSTRF.
  *
  *   RESID  (output) DOUBLE*
  *          norm(L*U - A) / ( N * norm(A) * EPS )   
@@ -44,7 +48,7 @@ int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L,
  *   ===================================================================== 
  */
     /* Local variables */
-    double zero = 0.0;
+    double      zero = 0.0;
     int i, j, k, arow, lptr,isub,  urow, superno, fsupc, u_part;
     double utemp, comp_temp;
     double anorm, tnorm, cnorm;
@@ -54,6 +58,7 @@ int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L,
     SCPformat *Lstore;
     NCPformat *Ustore;
     double *Aval, *Lval, *Uval;
+    int *colbeg, *colend;
 
     /* Function prototypes */
     extern double dlangs(char *, SuperMatrix *);
@@ -95,7 +100,7 @@ int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L,
             work[L_SUB(lptr-1)] -= utemp;   /* L_ii = 1 */
 	    for (j = L_NZ_START(urow) + u_part; j < L_NZ_END(urow); ++j) {
                 isub = L_SUB(lptr);
-	        work[isub] -= Lval[j] * utemp;
+                work[isub] -= Lval[j] * utemp;
 	        ++lptr;
 	    }
 	}
@@ -111,24 +116,32 @@ int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L,
             work[L_SUB(lptr-1)] -= utemp;   /* L_ii = 1 */
 	    for (j = L_NZ_START(i) + u_part; j < L_NZ_END(i); ++j) {
                 isub = L_SUB(lptr);
-	        work[isub] -= Lval[j] * utemp;
+                work[isub] -= Lval[j] * utemp;
 	        ++lptr;
 	    }
 	}
 
-	/* Now compute A[k] - (L*U)[k] */
-	for (i = Astore->colptr[k]; i < Astore->colptr[k+1]; ++i) {
+	/* Now compute A[k] - (L*U)[k] (Both matrices may be permuted.) */
+
+	colbeg = intMalloc(n);
+	colend = intMalloc(n);
+	for (i = 0; i < n; i++) {
+	    colbeg[perm_c[i]] = Astore->colptr[i]; 
+	    colend[perm_c[i]] = Astore->colptr[i+1];
+	}
+	
+	for (i = colbeg[k]; i < colend[k]; ++i) {
 	    arow = Astore->rowind[i];
-	    work[perm_r[arow]] += Aval[i];
+            work[perm_r[arow]] += Aval[i];
         }
 
 	/* Now compute the 1-norm of the column vector work */
         tnorm = 0.;
 	for (i = 0; i < m; ++i) {
-	    tnorm += fabs(work[i]);
+            tnorm += fabs(work[i]);
 	    work[i] = zero;
 	}
-	cnorm = MAX(tnorm, cnorm);
+	cnorm = SUPERLU_MAX(tnorm, cnorm);
     }
 
     *resid = cnorm;
@@ -142,6 +155,8 @@ int pdgst01(int m, int n, SuperMatrix *A, SuperMatrix *L,
     }
 
     SUPERLU_FREE(work);
+    SUPERLU_FREE(colbeg);
+    SUPERLU_FREE(colend);
     return 0;
 
 /*     End of SP_SGET01 */

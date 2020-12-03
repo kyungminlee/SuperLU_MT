@@ -1,18 +1,18 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * History:     Modified from LAPACK routine DGEEQU
  */
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
 
 void
 dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
-       double *colcnd, double *amax, int *info)
+        double *colcnd, double *amax, int *info)
 {
 /*    
     Purpose   
@@ -37,7 +37,7 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
     A       (input) SuperMatrix*
             The matrix of dimension (A->nrow, A->ncol) whose equilibration
             factors are to be computed. The type of A can be:
-            Stype = NC; Dtype = _D; Mtype = GE.
+            Stype = SLU_NC; Dtype = SLU_D; Mtype = SLU_GE.
 	    
     R       (output) double*, size A->nrow
             If INFO = 0 or INFO > M, R contains the row scale factors   
@@ -111,17 +111,17 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
 
     /* Find the maximum element in each row. */
     for (j = 0; j < A->ncol; ++j)
-	for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; ++i) {
-	    irow = Astore->rowind[i];
-	    r[irow] = MAX( r[irow], fabs(Aval[i]) );
+        for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; ++i) {
+            irow = Astore->rowind[i];
+            r[irow] = SUPERLU_MAX( r[irow], fabs(Aval[i]) );
 	}
 
     /* Find the maximum and minimum scale factors. */
     rcmin = bignum;
     rcmax = 0.;
     for (i = 0; i < A->nrow; ++i) {
-	rcmax = MAX(rcmax, r[i]);
-	rcmin = MIN(rcmin, r[i]);
+	rcmax = SUPERLU_MAX(rcmax, r[i]);
+	rcmin = SUPERLU_MIN(rcmin, r[i]);
     }
     *amax = rcmax;
 
@@ -135,9 +135,9 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
     } else {
 	/* Invert the scale factors. */
 	for (i = 0; i < A->nrow; ++i)
-	    r[i] = 1. / MIN( MAX( r[i], smlnum ), bignum );
+	    r[i] = 1. / SUPERLU_MIN( SUPERLU_MAX( r[i], smlnum ), bignum );
 	/* Compute ROWCND = min(R(I)) / max(R(I)) */
-	*rowcnd = MAX( rcmin, smlnum ) / MIN( rcmax, bignum );
+	*rowcnd = SUPERLU_MAX( rcmin, smlnum ) / SUPERLU_MIN( rcmax, bignum );
     }
 
     /* Compute column scale factors */
@@ -148,15 +148,15 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
     for (j = 0; j < A->ncol; ++j)
 	for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; ++i) {
 	    irow = Astore->rowind[i];
-	    c[j] = MAX( c[j], fabs(Aval[i]) * r[irow] );
+            c[j] = SUPERLU_MAX( c[j], fabs(Aval[i]) * r[irow] );
 	}
 
     /* Find the maximum and minimum scale factors. */
     rcmin = bignum;
     rcmax = 0.;
     for (j = 0; j < A->ncol; ++j) {
-	rcmax = MAX(rcmax, c[j]);
-	rcmin = MIN(rcmin, c[j]);
+	rcmax = SUPERLU_MAX(rcmax, c[j]);
+	rcmin = SUPERLU_MIN(rcmin, c[j]);
     }
 
     if (rcmin == 0.) {
@@ -169,13 +169,12 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
     } else {
 	/* Invert the scale factors. */
 	for (j = 0; j < A->ncol; ++j)
-	    c[j] = 1. / MIN( MAX( c[j], smlnum ), bignum);
+	    c[j] = 1. / SUPERLU_MIN( SUPERLU_MAX( c[j], smlnum ), bignum);
 	/* Compute COLCND = min(C(J)) / max(C(J)) */
-	*colcnd = MAX( rcmin, smlnum ) / MIN( rcmax, bignum );
+	*colcnd = SUPERLU_MAX( rcmin, smlnum ) / SUPERLU_MIN( rcmax, bignum );
     }
 
     return;
 
 } /* dgsequ */
-
 

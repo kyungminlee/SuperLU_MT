@@ -1,7 +1,7 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "pdsp_defs.h"
-#include "util.h"
 
 void dlsolve(int, int, double*, double*);
 void dmatvec(int, int, int, double*, double*, double*);
@@ -22,10 +22,10 @@ pdgstrf_column_bmod(
 		    )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose:
  * ========
@@ -59,7 +59,7 @@ pdgstrf_column_bmod(
      * kfnz = first nonz in the k-th supernodal segment
      * no_zeros = no of leading zeros in a supernodal U-segment
      */
-    register double ukj, ukj1, ukj2;
+    double	  ukj, ukj1, ukj2;
     register int lptr, kfnz, isub, irow, i, no_zeros;
     register int luptr, luptr1, luptr2;
     int          fsupc, nsupc, nsupr, segsze;
@@ -76,6 +76,10 @@ pdgstrf_column_bmod(
     double       *tempv1;
     int          mem_error;
     register float flopcnt;
+
+    double      zero = 0.0;
+    double      one = 1.0;
+    double      none = -1.0;
 
     xsup       = Glu->xsup;
     supno      = Glu->supno;
@@ -104,7 +108,7 @@ printf("(%d) pdgstrf_column_bmod[1]: %d, nseg %d, krep %d, jsupno %d, ksupno %d\
 	if ( jsupno != ksupno ) { /* Outside the rectangular supernode */
 
 	    fsupc = xsup[ksupno];
-	    fst_col = MAX ( fsupc, fpanelc );
+	    fst_col = SUPERLU_MAX ( fsupc, fpanelc );
 
   	    /* Distance from the current supernode to the current panel; 
 	       d_fsupc=0 if fsupc >= fpanelc. */
@@ -113,14 +117,14 @@ printf("(%d) pdgstrf_column_bmod[1]: %d, nseg %d, krep %d, jsupno %d, ksupno %d\
 	    luptr = xlusup[fst_col] + d_fsupc;
 	    lptr = xlsub[fsupc] + d_fsupc;
 	    kfnz = repfnz[krep];
-	    kfnz = MAX ( kfnz, fpanelc );
+	    kfnz = SUPERLU_MAX ( kfnz, fpanelc );
 	    segsze = krep - kfnz + 1;
 	    nsupc = krep - fst_col + 1;
 	    nsupr = xlsub_end[fsupc] - xlsub[fsupc]; /* Leading dimension */
 	    nrow = nsupr - d_fsupc - nsupc;
 	    krep_ind = lptr + nsupc - 1;
 
-	    flopcnt = segsze * (segsze - 1) + 2 * nrow * segsze;
+            flopcnt = segsze * (segsze - 1) + 2 * nrow * segsze;
 	    Gstat->procstat[pnum].fcops += flopcnt;
 
 #if ( DEBUGlevel>=2 )
@@ -130,6 +134,8 @@ fsupc %d, nsupr %d, nsupc %d\n",
        pnum, jcol, krep, kfnz, segsze, d_fsupc, fsupc, nsupr, nsupc);
 
 #endif
+
+
 	    /* 
 	     * Case 1: Update U-segment of size 1 -- col-col update 
 	     */
@@ -173,6 +179,8 @@ fsupc %d, nsupr %d, nsupc %d\n",
 			     + ukj1*lusup[luptr1] + ukj2*lusup[luptr2] );
 		    }
 		}
+
+
 	    } else {
 	  	/*
 		 * Case: sup-col update
@@ -202,7 +210,8 @@ fsupc %d, nsupr %d, nsupc %d\n",
 		
  		luptr += segsze;  /* Dense matrix-vector */
 		tempv1 = &tempv[segsze];
-		alpha = 1.0; beta = 0.0;
+		alpha = one;
+		beta = zero;
 #if ( MACH==CRAY_PVP )
 		SGEMV( ftcs2, &nrow, &segsze, &alpha, &lusup[luptr], 
 		       &nsupr, tempv, &incx, &beta, tempv1, &incy );
@@ -222,15 +231,15 @@ fsupc %d, nsupr %d, nsupc %d\n",
                 for (i = 0; i < segsze; i++) {
                     irow = lsub[isub];
                     dense[irow] = tempv[i]; /* Scatter */
-                    tempv[i] = 0.0;
+                    tempv[i] = zero;
                     isub++;
                 }
 
 		/* Scatter tempv1[] into SPA dense[*] */
 		for (i = 0; i < nrow; i++) {
 		    irow = lsub[isub];
-		    dense[irow] -= tempv1[i]; /* Scatter-add */
-		    tempv1[i] = 0.0;
+                    dense[irow] -= tempv1[i];
+		    tempv1[i] = zero;
 		    ++isub;
 		}
 	    } /* else segsze >= 4 */
@@ -256,7 +265,7 @@ fsupc %d, nsupr %d, nsupc %d\n",
     for (isub = xlsub[fsupc]; isub < xlsub_end[fsupc]; ++isub) {
   	irow = lsub[isub];
 	lusup[nextlu] = dense[irow];
-	dense[irow] = 0.0;
+	dense[irow] = zero;
 #ifdef DEBUG
 if (jcol == -1)
     printf("(%d) pdgstrf_column_bmod[lusup] jcol %d, irow %d, lusup %.10e\n",
@@ -281,7 +290,7 @@ if (jcol == -1) {
      *    (1) fsupc < fpanelc,  then fst_col := fpanelc
      *    (2) fsupc >= fpanelc, then fst_col := fsupc
      */
-    fst_col = MAX ( fsupc, fpanelc );
+    fst_col = SUPERLU_MAX ( fsupc, fpanelc );
 
     if ( fst_col < jcol ) {
 
@@ -304,14 +313,14 @@ printf("(%d) pdgstrf_column_bmod[3] jcol %d, fsupc %d, nsupr %d, nsupc %d, nrow 
        pnum, jcol, fsupc, nsupr, nsupc, nrow);
 #endif    
 
-	flopcnt = nsupc * (nsupc - 1) + 2 * nrow * nsupc;
+        flopcnt = nsupc * (nsupc - 1) + 2 * nrow * nsupc;
 	Gstat->procstat[pnum].fcops += flopcnt;
 
 /*	ops[TRSV] += nsupc * (nsupc - 1);
 	ops[GEMV] += 2 * nrow * nsupc;    */
 	
 #ifdef USE_VENDOR_BLAS
-	alpha = -1.0; beta = 1.0; /* y := beta*y + alpha*A*x */
+	alpha = none; beta = one; /* y := beta*y + alpha*A*x */
 #if ( MACH==CRAY_PVP )
 	STRSV( ftcs1, ftcs2, ftcs3, &nsupc, &lusup[luptr], 
 	       &nsupr, &lusup[ufirst], &incx );
@@ -332,8 +341,8 @@ printf("(%d) pdgstrf_column_bmod[3] jcol %d, fsupc %d, nsupr %d, nsupc %d, nrow 
         /* Copy updates from tempv[*] into lusup[*] */
 	isub = ufirst + nsupc;
 	for (i = 0; i < nrow; i++) {
-	    lusup[isub] -= tempv[i]; /* Scatter-add */
-	    tempv[i] = 0.0;
+            lusup[isub] -= tempv[i];
+            tempv[i] = 0.0;
 	    ++isub;
 	}
 #endif

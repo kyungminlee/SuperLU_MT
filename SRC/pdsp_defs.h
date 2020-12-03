@@ -1,8 +1,9 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Sparse matrix types and function prototypes.
  *
@@ -10,6 +11,12 @@
 
 #ifndef __SUPERLU_dSP_DEFS /* allow multiple inclusions */
 #define __SUPERLU_dSP_DEFS
+
+/*
+ * File name:           pdsp_defs.h
+ * Purpose:             Sparse matrix types and function prototypes
+ * History:
+ */
 
 /****************************
   Include thread header file
@@ -21,6 +28,8 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#elif defined ( _OPENMP )
+#include <omp.h>
 #elif defined ( _PTHREAD )
 #include <pthread.h>
 #elif defined ( _CRAY )
@@ -28,41 +37,16 @@
 #include <string.h>
 #endif
 
-typedef int int_t;
+/* Define my integer type int_t */
+typedef int int_t; /* default */
 
-#include "machines.h"
-#include "Cnames.h"
+#include "slu_mt_machines.h"
+#include "slu_mt_Cnames.h"
 #include "supermatrix.h"
-#include "util.h"
+#include "slu_mt_util.h"
 #include "pxgstrf_synch.h"
 
-#if ( MACH==DEC || MACH==PTHREAD )
-typedef pthread_mutex_t mutex_t;
-#elif ( MACH==SGI || MACH==ORIGIN )
-typedef int mutex_t;
-#elif ( MACH==CRAY_PVP )
-typedef int mutex_t;
-#endif
 
-/**********************
-  Enumerated constants
-  *********************/
-typedef enum {NO, YES} yes_no_t;
-typedef enum {NOTRANS, TRANS, CONJ} trans_t;
-typedef enum {FACTORED, DOFACT, EQUILIBRATE} fact_t;
-typedef enum {NOEQUIL, ROW, COL, BOTH} equed_t;
-typedef enum {LUSUP, UCOL, LSUB, USUB} MemType;
-
-/* Number of marker arrays used in the symbolic factorization, 
-   each of size nrow. */
-#define NO_MARKER     3
-
-#define LOCOL    70
-#define HICOL    78
-#define BADROW   44
-#define BADCOL   35
-#define BADPAN   BADCOL
-#define BADREP   35
 /*
  * *************************************************
  *  Global data structures used in LU factorization
@@ -191,143 +175,6 @@ typedef struct {
     /* --------------------------------------------------------------- */
 } GlobalLU_t;
 
-/* 
- * *********************************************************************
- * The pdgstrf_options_t structure contains the shared variables used 
- * for factorization, which are passed to each thread.
- * *********************************************************************
- * 
- * nprocs (int)
- *        Number of processes (or threads) to be spawned and used to perform
- *        the LU factorization by pdgstrf().
- *
- * fact   (fact_t)
- *        Specifies whether or not the factored form of the matrix
- *        A is supplied on entry, and if not, whether the matrix A should
- *        be equilibrated before it is factored.
- *        = FACTORED: On entry, L, U, perm_r and perm_c contain the 
- *              factored form of A. If equed is not 'N', the matrix A has
- *              been equilibrated with scaling factors R and C.
- *              A, L, U, perm_r are not modified.
- *        = DOFACT: The matrix A will be factored, and the factors will be
- *              stored in L and U.
- *        = EQUILIBRATE: The matrix A will be equilibrated if necessary, then
- *              factored into L and U.
- *
- * trans  (trans_t)
- *        Specifies the form of the system of equations:
- *        = NOTRANS: A * X = B        (No transpose)
- *        = TRANS:   A**T * X = B     (Transpose)
- *        = CONJ:    A**H * X = B     (Transpose)
- *
- * refact (yes_no_t)
- *        Specifies whether this is first time or subsequent factorization.
- *        = NO:  this factorization is treated as the first one;
- *        = YES: it means that a factorization was performed prior to this
- *               one. Therefore, this factorization will re-use some
- *               existing data structures, such as L and U storage, column
- *               elimination tree, and the symbolic information of the
- *               Householder matrix.
- *
- * panel_size (int)
- *        A panel consists of at most panel_size consecutive columns.
- *
- * relax  (int)
- *        To control degree of relaxing supernodes. If the number
- *        of nodes (columns) in a subtree of the elimination tree is less
- *        than relax, this subtree is considered as one supernode,
- *        regardless of the row structures of those columns.
- *
- * diag_pivot_thresh (double)
- *        Diagonal pivoting threshold. At step j of the Gaussian elimination,
- *        if abs(A_jj) >= diag_pivot_thresh * (max_(i>=j) abs(A_ij)),
- *        use A_jj as pivot, else use A_ij with maximum magnitude. 
- *        0 <= diag_pivot_thresh <= 1. The default value is 1, 
- *        corresponding to partial pivoting.
- *
- * usepr  (yes_no_t)
- *        Whether the pivoting will use perm_r specified by the user.
- *        = YES: use perm_r; perm_r is input, unchanged on exit.
- *        = NO:  perm_r is determined by partial pivoting, and is output.
- *
- * drop_tol (double) (NOT IMPLEMENTED)
- *	  Drop tolerance parameter. At step j of the Gaussian elimination,
- *        if abs(A_ij)/(max_i abs(A_ij)) < drop_tol, drop entry A_ij.
- *        0 <= drop_tol <= 1. The default value of drop_tol is 0,
- *        corresponding to not dropping any entry.
- *
- * perm_c (int*) dimension A->ncol
- *	  Column permutation vector, which defines the 
- *        permutation matrix Pc; perm_c[i] = j means column i of A is 
- *        in position j in A*Pc.
- *        When search for diagonal, perm_c[*] is applied to the
- *        row subscripts of A, so that diagonal threshold pivoting
- *        can find the diagonal of A, instead of that of A*Pc.
- *
- * perm_r (int*) dimension A->nrow
- *        Row permutation vector which defines the permutation matrix Pr,
- *        perm_r[i] = j means row i of A is in position j in Pr*A.
- *        If usepr = NO, perm_r is output argument;
- *        If usepr = YES, the pivoting routine will try to use the input
- *           perm_r, unless a certain threshold criterion is violated.
- *           In that case, perm_r is overwritten by a new permutation
- *           determined by partial pivoting or diagonal threshold pivoting.
- *
- * work   (void*) of size lwork
- *        User-supplied work space and space for the output data structures.
- *        Not referenced if lwork = 0;
- *
- * lwork  (int)
- *        Specifies the length of work array.
- *        = 0:  allocate space internally by system malloc;
- *        > 0:  use user-supplied work array of length lwork in bytes,
- *              returns error if space runs out.
- *        = -1: the routine guesses the amount of space needed without
- *              performing the factorization, and returns it in
- *              superlu_memusage->total_needed; no other side effects.
- *
- * etree  (int*)
- *        Elimination tree of A'*A, dimension A->ncol.
- *        Note: etree is a vector of parent pointers for a forest whose
- *        vertices are the integers 0 to A->ncol-1; etree[root]==A->ncol.
- *        On input, the columns of A should be permutated so that the
- *        etree is in a certain postorder.
- *
- * colcnt_h (int*)
- *        Column colunts of the Householder matrix.
- *
- * part_super_h (int*)
- *        Partition of the supernodes in the Householder matrix.
- *	  part_super_h[k] = size of the supernode beginning at column k;
- * 	                  = 0, elsewhere.
- *
- *
- */
-typedef struct {
-    int      nprocs;
-    fact_t   fact;
-    trans_t  trans;
-    yes_no_t refact;
-    int      panel_size;
-    int      relax;
-    double   diag_pivot_thresh;
-    yes_no_t usepr;
-    double   drop_tol;
-    /* The following arrays are persistent during repeated factorizations. */
-    int  *perm_c;
-    int  *perm_r;
-    void *work;
-    int  lwork;
-    /* The following structural arrays are computed internally by 
-       sp_colorder(), so the user does not provide them on input.
-       These 3 arrays are computed in the first factorization, and are 
-       re-used in the subsequent factors of the matrices with the same
-       nonzero structure. */
-    int  *etree;
-    int  *colcnt_h;
-    int  *part_super_h;
-} pdgstrf_options_t;
-
 
 /* 
  * *********************************************************************
@@ -362,48 +209,9 @@ typedef struct {
 typedef struct {
     int  pnum; /* process number */
     int  info; /* error code returned from each thread */       
-    pdgstrf_options_t *pdgstrf_options;
+    superlumt_options_t *superlumt_options;
     pxgstrf_shared_t  *pxgstrf_shared; /* shared for LU factorization */
 } pdgstrf_threadarg_t;
-
-/* The structure to record a relaxed supernode. */
-typedef struct {
-    int fcol;
-    int size;
-} pxgstrf_relax_t;
-
-/* Headers for 4 types of dynamatically managed memory */
-typedef struct e_node {
-    int size;      /* length of the memory that has been used */
-    void *mem;     /* pointer to the new malloc'd store */
-} ExpHeader;
-
-/* The structure to keep track of memory usage. */
-typedef struct {
-    float for_lu;
-    float total_needed;
-    int   expansions;
-} superlu_memusage_t;
-
-
-/* *******
-   Macros
-   *******/
-
-#define SUPER_REP(s)    ( xsup_end[s]-1 )
-#define SUPER_FSUPC(s)  ( xsup[s] )
-#define SINGLETON(s)    ( (xsup_end[s] - xsup[s]) == 1 )
-#define ISPRUNED(j)     ( ispruned[j] )
-#define STATE(j)        ( pxgstrf_shared->pan_status[j].state )
-#define DADPANEL(j)     ( etree[j + pxgstrf_shared->pan_status[j].size-1] )
-
-#ifdef PROFILE
-#define TIC(t)          t = SuperLU_timer_()
-#define TOC(t2, t1)     t2 = SuperLU_timer_() - t1
-#else
-#define TIC(t)
-#define TOC(t2, t1)
-#endif
 
 
 /* *********************
@@ -422,17 +230,18 @@ extern void
 pdgssv(int, SuperMatrix *, int *, int *, SuperMatrix *, SuperMatrix *, 
        SuperMatrix *, int *);
 extern void
-pdgssvx(int, pdgstrf_options_t *, SuperMatrix *, int *, int *,  
+pdgssvx(int, superlumt_options_t *, SuperMatrix *, int *, int *,  
 	equed_t *, double *, double *, SuperMatrix *, SuperMatrix *,
 	SuperMatrix *, SuperMatrix *, 
-	double *, double *, double *, double *, superlu_memusage_t *, int *);
+	double *, double *, double *, double *, superlu_memusage_t *, 
+	int *);
 
 /* ---------------
    Driver related 
    ---------------*/
 extern void dgsequ (SuperMatrix *, double *, double *, double *,
-		    double *, double *, int *);
-extern void dlaqgs (SuperMatrix *, double *, double *, double,
+                    double *, double *, int *);
+extern void dlaqgs (SuperMatrix *, double *, double *, double, 
 		    double, double, equed_t *);
 extern void dgscon (char *, SuperMatrix *, SuperMatrix *,
 		    double, double *, int *);
@@ -453,7 +262,7 @@ extern int  sp_dgemm (char *, int, int, int, double, SuperMatrix *,
    ----------------------*/
 extern void pxgstrf_scheduler (const int, const int, const int *,
 			       int *, int *, pxgstrf_shared_t *);
-extern int  ParallelInit (int, pxgstrf_relax_t *, pdgstrf_options_t *,
+extern int  dParallelInit (int, pxgstrf_relax_t *, superlumt_options_t *,
 			  pxgstrf_shared_t *);
 extern int  ParallelFinalize ();
 extern int  queue_init (queue_t *, int);
@@ -463,7 +272,7 @@ extern int  EnqueueRelaxSnode (queue_t *, int, pxgstrf_relax_t *,
 extern int  EnqueueDomains(queue_t *, struct Branch *, pxgstrf_shared_t *);
 extern int  Enqueue (queue_t *, qitem_t);
 extern int  Dequeue (queue_t *, qitem_t *);
-extern int  NewNsuper (const int, mutex_t *, int *);
+extern int  NewNsuper (const int, pxgstrf_shared_t *, int *);
 extern int  lockon(int *);
 extern void PartDomains(const int, const float, SuperMatrix *, int *, int *);
 
@@ -500,27 +309,28 @@ extern void StatAlloc (const int, const int, const int, const int, Gstat_t*);
 extern void StatInit  (const int, const int, Gstat_t*);
 extern void StatFree  (Gstat_t*);
 extern void get_perm_c(int, SuperMatrix *, int *);
-extern void sp_colorder (SuperMatrix *, int *, pdgstrf_options_t *,
+extern void dsp_colorder (SuperMatrix *, int *, superlumt_options_t *,
 			 SuperMatrix *);
 extern int  sp_coletree (int *, int *, int *, int, int, int *);
-extern int  PresetMap (const int, SuperMatrix *, pxgstrf_relax_t *, 
-		       pdgstrf_options_t *, GlobalLU_t *);
+extern int  dPresetMap (const int, SuperMatrix *, pxgstrf_relax_t *, 
+		       superlumt_options_t *, GlobalLU_t *);
 extern int  qrnzcnt (int, int, int *, int *, int *, int *, int *, int *,
 		     int *, int *, int *, int *);
 extern int  DynamicSetMap(const int, const int, const int, pxgstrf_shared_t*);
-extern void pdgstrf (pdgstrf_options_t *, SuperMatrix *, int *, 
+extern void pdgstrf (superlumt_options_t *, SuperMatrix *, int *, 
 		     SuperMatrix *, SuperMatrix *, Gstat_t *, int *);
-extern void pdgstrf_init (int, yes_no_t, int, int, double, yes_no_t, double,
+extern void pdgstrf_init (int, fact_t, trans_t, yes_no_t, int, int, double, yes_no_t, double,
 			  int *, int *, void *, int, SuperMatrix *,
-			  SuperMatrix *, pdgstrf_options_t *, Gstat_t *);
+			  SuperMatrix *, superlumt_options_t *, Gstat_t *);
 extern pdgstrf_threadarg_t*
 pdgstrf_thread_init (SuperMatrix *, SuperMatrix *, SuperMatrix *,
-		     pdgstrf_options_t*, pxgstrf_shared_t*, Gstat_t*, int*);
+		     superlumt_options_t*, pxgstrf_shared_t*, Gstat_t*, int*);
 extern void
 pdgstrf_thread_finalize (pdgstrf_threadarg_t *, pxgstrf_shared_t *,
 			 SuperMatrix *, int *, SuperMatrix *, SuperMatrix *);
-extern void pdgstrf_finalize(pdgstrf_options_t *, SuperMatrix *);
-extern void pxgstrf_relax_snode (const int, pdgstrf_options_t *,
+extern void pdgstrf_finalize(superlumt_options_t *, SuperMatrix *);
+extern void pxgstrf_finalize(superlumt_options_t *, SuperMatrix *);
+extern void pdgstrf_relax_snode (const int, superlumt_options_t *,
 				 pxgstrf_relax_t *);
 extern int
 pdgstrf_factor_snode (const int, const int, SuperMatrix *, const double,
@@ -592,12 +402,26 @@ extern void dlsolve (int, int, double *, double *);
 extern void dusolve (int, int, double *, double *);
 extern void dmatvec (int, int, int, double *, double *, double *);
 
+
+/* ---------------
+   BLAS 
+   ---------------*/
+extern int dgemm_(char*, char*, int*, int*, int*, double*,
+                  double*, int*, double*, int*, double*,
+                  double*, int*);
+extern int dtrsm_(char*, char*, char*, char*, int*, int*, double*,
+                  double*, int*, double*, int*);
+extern int dtrsv_(char*, char*, char*, int*, double*, int*,
+                  double*, int*);
+extern int dgemv_(char*, int*, int*, double*, double*, 
+		   int*, double*, int*, double*, double*, int*);
+
 /* ---------------
    Memory related 
    ---------------*/
-extern int  pdgstrf_MemInit (int, int, pdgstrf_options_t *,
+extern float pdgstrf_MemInit (int, int, superlumt_options_t *,
 			SuperMatrix *, SuperMatrix *, GlobalLU_t *);
-extern int  pdgstrf_memory_use(const int, const int, const int);
+extern float pdgstrf_memory_use(const int, const int, const int);
 extern int  pdgstrf_WorkInit (int, int, int **, double **);
 extern void pxgstrf_SetIWork (int, int, int *, int **, int **, int **,
 		      int **, int **, int **, int **);
@@ -610,8 +434,8 @@ extern int  *intCalloc (int);
 extern double *doubleMalloc(int);
 extern double *doubleCalloc(int);
 extern int  memory_usage ();
-extern int  superlu_QuerySpace (int, SuperMatrix *, SuperMatrix *, int, 
-				superlu_memusage_t *);
+extern int  superlu_dQuerySpace (int, SuperMatrix *, SuperMatrix *, int, 
+				 superlu_memusage_t *);
 extern int  Glu_alloc (const int, const int, const int, const MemType,
 		       int *, pxgstrf_shared_t *);
 
@@ -626,14 +450,19 @@ extern int     xerbla_(char *, int *);
 extern void    superlu_abort_and_exit(char *);
 extern void    ifill(int *, int, int);
 extern void    dfill(double *, int, double);
-extern void    inf_norm_error(int, SuperMatrix *, double *);
+extern void    dinf_norm_error(int, SuperMatrix *, double *);
 extern void    dstat_allocate(int);
 extern void    snode_profile(int, int *);
 extern void    super_stats(int, int *, int *);
 extern void    panel_stats(int, int, int *, Gstat_t *);
 extern void    PrintSumm(char *, int, int, int);
-extern void    PrintPerf(SuperMatrix *, SuperMatrix *, superlu_memusage_t *,
-			 double, double, double *, double *, char *);
+extern void    dPrintPerf(SuperMatrix *, SuperMatrix *, superlu_memusage_t *,
+			 double, double, double *, double *, char *,
+			 Gstat_t *);
+extern void    dCompRow_to_CompCol(int m, int n, int nnz, 
+                           double *a, int *colind, int *rowptr,
+                           double **at, int **rowind, int **colptr);
+
 
 /* -----------------------
    Routines for debugging
@@ -648,5 +477,5 @@ extern void    check_repfnz(int, int, int, int *);
 #endif
 
 
-#endif /* __SUPERLU_dSP_DEFS */
+#endif /* __SUPERLU_DSP_DEFS */
 

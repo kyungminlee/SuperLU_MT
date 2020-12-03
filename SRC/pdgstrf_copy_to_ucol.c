@@ -1,5 +1,6 @@
+
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 int
 pdgstrf_copy_to_ucol(
@@ -9,15 +10,15 @@ pdgstrf_copy_to_ucol(
 		     const int  *segrep, /* in */
 		     const int  *repfnz, /* in */
 		     const int  *perm_r, /* in */
-		     double *dense,  /* modified - reset to zero on exit */
+		     double	 *dense,  /* modified - reset to zero on exit */
 		     pxgstrf_shared_t *pxgstrf_shared /* modified */
 		     )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Gather the nonzeros from SPA dense[*,jcol] into global ucol[*].
  */
@@ -27,6 +28,8 @@ pdgstrf_copy_to_ucol(
     int      *xsup, *supno, *lsub, *xlsub, *usub;
     double   *ucol;
     GlobalLU_t *Glu = pxgstrf_shared->Glu; /* modified */
+
+    double zero = 0.0;
 
     xsup    = Glu->xsup;
     supno   = Glu->supno;
@@ -73,7 +76,7 @@ pdgstrf_copy_to_ucol(
 		    irow = lsub[isub];
 		    usub[nextu] = perm_r[irow];
 		    ucol[nextu] = dense[irow];
-		    dense[irow] = 0.0;
+		    dense[irow] = zero;
 #ifdef DEBUG
 if (jcol == EMPTY)
     printf("(%d) pcopy_to_ucol[]: jcol %d, krep %d, irow %d, ucol %.10e\n",

@@ -1,5 +1,36 @@
-		SuperLU_MT (version 1.0)
+		SuperLU_MT (version 2.0)
 		========================
+
+Copyright (c) 2003, The Regents of the University of California, through
+Lawrence Berkeley National Laboratory (subject to receipt of any required 
+approvals from U.S. Dept. of Energy) 
+
+All rights reserved. 
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met: 
+
+(1) Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer. 
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution. 
+(3) Neither the name of Lawrence Berkeley National Laboratory, U.S. Dept. of
+Energy nor the names of its contributors may be used to endorse or promote
+products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+  
 
 SuperLU_MT contains a set of subroutines to solve a sparse linear system 
 A*X=B. It uses Gaussian elimination with partial pivoting (GEPP). 
@@ -8,26 +39,30 @@ preordering for sparsity is completely separate from the factorization.
 
 SuperLU_MT is a parallel extension to the serial SuperLU library.
 SuperLU_MT is implemented in ANSI C, with multithreading extension,
-for example, using POSIX threads. Currently, only the LU factorization 
-routine, which is the most time-consuming part of the solution process, 
-is parallelized on machines with a shared address space. The other
-routines, such as column preordering and the forward and back substitutions
-are performed sequentially. This "alpha" release contains only 
-double-precision real data type.
+for example, using POSIX threads or OpenMP. Currently, only the LU
+factorization routine, which is the most time-consuming part of the
+solution process, is parallelized on machines with a shared address space.
+The other routines, such as column preordering and the forward and
+back substitutions are performed sequentially.
+The library provides functionality for both real and complex
+matrices, in both single and double precision.
 
 The distribution contains the following directory structure:
 
-  SuperLU_MT/README    instructions on installation
-  SuperLU_MT/CBLAS/    needed BLAS routines in C, not necessarily fast
-  SuperLU_MT/EXAMPLE/  example programs
-  SuperLU_MT/INSTALL/  test machine dependent parameters; the Users' Guide.
-  SuperLU_MT/SRC/      C source code, to be compiled into superlu_mt.a library
-  SuperLU_MT/TESTING/  driver routines to test correctness
-  SuperLU_MT/Makefile  top level Makefile that does installation and testing
-  SuperLU_MT/make.inc  compiler, compile flags, library definitions and C
-                       preprocessor definitions, included in all Makefiles.
-                       (You may need to edit it to be suitable for your system
-                        before compiling the whole package.)
+SuperLU_MT_2.0/README    instructions on installation
+SuperLU_MT_2.0/CBLAS/    BLAS routines in C, functional but not fast
+SuperLU_MT_2.0/DOC/      Users' Guide
+SuperLU_MT_2.0/EXAMPLE/  example programs
+SuperLU_MT_2.0/INSTALL/  test machine dependent parameters; the Users' Guide.
+SuperLU_MT_2.0/MAKE_INC/ sample machine-specific make.inc files
+SuperLU_MT_2.0/SRC/      C source code, to be compiled into libsuperlu_mt.a
+SuperLU_MT_2.0/TESTING/  driver routines to test correctness
+SuperLU_MT_2.0/lib/      SuperLU_MT library archive libsuperlu_mt.a
+SuperLU_MT_2.0/Makefile  top level Makefile that does installation and testing
+SuperLU_MT_2.0/make.inc  compiler, compile flags, library definitions and C
+                         preprocessor definitions, included in all Makefiles.
+                         (You may need to edit it to suit your system
+                          before compiling the whole package.)
 
 Before installing the package, please examine the three things dependent 
 on your system setup:
@@ -38,15 +73,18 @@ on your system setup:
    edit the Makefiles in the subdirectories. All information that is
    machine specific has been defined in this include file. 
 
-   The following machine-specific SuperLU_MT/make.inc files are
-   provided in the top-level directory:
+   The following machine-specific make.inc files are provided in the
+   MAKE_INC/ directory:
 
 	make.inc	Platforms
         --------        ---------
+        make.pthreads   machine that supports POSIX threads
+        make.openmp     machine that supports OpenMP
         make.alpha      DEC Alpha Servers
+        make.altix    	SGI Altix
         make.cray       Cray C90/J90
+        make.ibm        IBM Power series
         make.origin     SGI/Cray Origin2000
-        make.pthreads   Any machine that supports POSIX threads
         make.sgi        SGI Power Challenge
         make.sun        Sun Ultra Enterprise servers
 
@@ -55,7 +93,7 @@ on your system setup:
    make.inc. For example, if you wish to run SuperLU_MT on a Sun SMP system,
    you can do
 
-        cp make.sun make.inc
+        cp MAKE_INC/make.sun make.inc
    
    For the systems other than listed above, some porting effort is needed
    for parallel factorization routines. Please refer to the Users' Guide 
@@ -75,7 +113,7 @@ on your system setup:
    directory and do the following:
 
     1) In make.inc, undefine (comment out) BLASDEF, and define:
-          BLASLIB = ../blas$(PLAT).a
+          BLASLIB = ../lib/libblas$(PLAT).a
 
     2) Type:
           make blaslib
@@ -114,7 +152,8 @@ REFERENCES
     Xiaoye S. Li, Tech report UCB//CSD-96-919, Computer Science Division, 
     U.C. Berkeley, September, 1996, Ph.D dissertation.
 
-Xiaoye S. Li,    Lawrence Berkeley National Lab, xiaoye@nersc.gov
-James Demmel,    Univ. of California Berkeley, demmel@cs.berkeley.edu
-John R. Gilbert, Xerox Palo Alto Research Center, gilbert@parc.xerox.com
+Xiaoye S. Li,    Lawrence Berkeley National Lab, xsli@lbl.gov
+James Demmel,    UC Berkeley, demmel@cs.berkeley.edu
+John R. Gilbert, UC Santa Barbara, gilbert@cs.ucsb.edu
+
 

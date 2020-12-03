@@ -44,11 +44,6 @@ HEADER = ../SRC
 #
 #######################################################################
 
-MYSBLAS2 = smyblas2.o
-MYDBLAS2 = dmyblas2.o
-MYCBLAS2 = cmyblas2.o
-MYZBLAS2 = zmyblas2.o
-
 SBLAS1 = isamax.o sasum.o saxpy.o scopy.o sdot.o snrm2.o \
 	 srot.o sscal.o
 SBLAS2 = sgemv.o ssymv.o strsv.o sger.o ssyr2.o
@@ -66,28 +61,26 @@ ZBLAS1 = izamax.o dzasum.o zaxpy.o zcopy.o dznrm2.o \
 ZBLAS2 = zgemv.o zhemv.o ztrsv.o zgerc.o zher2.o
 
 
-all: double
+all: single double complex complex16
 
-#single double complex complex16
-
-single: $(SBLAS1) $(SBLAS2) $(SBLAS3) $(MYSBLAS2)
+single: $(SBLAS1) $(SBLAS2) $(SBLAS3)
 	$(ARCH) $(ARCHFLAGS) $(BLASLIB) $(SBLAS1) $(ALLBLAS) \
-	$(SBLAS2) $(SBLAS3) $(MYSBLAS2)
+		$(SBLAS2) $(SBLAS3)
 	$(RANLIB) $(BLASLIB)
 
-double: $(DBLAS1) $(DBLAS2) $(DBLAS3) $(MYDBLAS2)
+double: $(DBLAS1) $(DBLAS2) $(DBLAS3)
 	$(ARCH) $(ARCHFLAGS) $(BLASLIB) $(DBLAS1) $(ALLBLAS) \
-	$(DBLAS2) $(DBLAS3) $(MYDBLAS2)
+		$(DBLAS2) $(DBLAS3)
 	$(RANLIB) $(BLASLIB)
 
-complex: $(CBLAS1) $(CBLAS2) $(CBLAS3) $(MYCBLAS2)
+complex: $(CBLAS1) $(CBLAS2) $(CBLAS3)
 	$(ARCH) $(ARCHFLAGS) $(BLASLIB) $(CBLAS1) $(ALLBLAS) \
-	$(CBLAS2) $(CBLAS3) $(MYCBLAS2)
+		$(CBLAS2) $(CBLAS3)
 	$(RANLIB) $(BLASLIB)
 
-complex16: $(ZBLAS1) $(ZBLAS2) $(ZBLAS3) $(MYZBLAS2)
+complex16: $(ZBLAS1) $(ZBLAS2) $(ZBLAS3)
 	$(ARCH) $(ARCHFLAGS) $(BLASLIB) $(ZBLAS1) $(ALLBLAS) \
-	$(ZBLAS2) $(ZBLAS3) $(MYZBLAS2)
+		$(ZBLAS2) $(ZBLAS3)
 	$(RANLIB) $(BLASLIB)
 
 .c.o:

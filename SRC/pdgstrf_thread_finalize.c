@@ -1,3 +1,4 @@
+
 #include "pdsp_defs.h"
 
 void
@@ -8,10 +9,11 @@ pdgstrf_thread_finalize(pdgstrf_threadarg_t *pdgstrf_threadarg,
 			)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
+ *
  *
  * Purpose
  * =======
@@ -54,12 +56,12 @@ pdgstrf_thread_finalize(pdgstrf_threadarg_t *pdgstrf_threadarg,
  */
     register int nprocs, n, i, iinfo;
     int       nnzL, nnzU;
-    pdgstrf_options_t *pdgstrf_options;
+    superlumt_options_t *superlumt_options;
     GlobalLU_t *Glu;
-    extern ExpHeader *expanders;
+    extern ExpHeader *dexpanders;
 
     n = A->ncol;
-    pdgstrf_options = pdgstrf_threadarg->pdgstrf_options;
+    superlumt_options = pdgstrf_threadarg->superlumt_options;
     Glu = pxgstrf_shared->Glu;
     Glu->supno[n] = Glu->nsuper;
 
@@ -70,7 +72,7 @@ pdgstrf_thread_finalize(pdgstrf_threadarg_t *pdgstrf_threadarg,
     compressSUP(n, pxgstrf_shared->Glu);
 #endif
 
-    if ( pdgstrf_options->refact == YES ) {
+    if ( superlumt_options->refact == YES ) {
         /* L and U structures may have changed due to possibly different
 	   pivoting, although the storage is available. */
         ((SCPformat *)L->Store)->nnz = nnzL;
@@ -89,10 +91,10 @@ pdgstrf_thread_finalize(pdgstrf_threadarg_t *pdgstrf_threadarg,
 
     /* Combine the INFO returned from individual threads. */
     iinfo = 0;
-    nprocs = pdgstrf_options->nprocs;
+    nprocs = superlumt_options->nprocs;
     for (i = 0; i < nprocs; ++i) {
         if ( pdgstrf_threadarg[i].info ) {
-	    if ( iinfo ) iinfo = MIN(iinfo, pdgstrf_threadarg[i].info);
+	    if (iinfo) iinfo=SUPERLU_MIN(iinfo, pdgstrf_threadarg[i].info);
 	    else iinfo = pdgstrf_threadarg[i].info;
 	}
     }
@@ -113,8 +115,8 @@ pdgstrf_thread_finalize(pdgstrf_threadarg_t *pdgstrf_threadarg,
     SUPERLU_FREE(pxgstrf_shared->inv_perm_c);
     SUPERLU_FREE(pxgstrf_shared->xprune);
     SUPERLU_FREE(pxgstrf_shared->ispruned);
-    SUPERLU_FREE(expanders);
-    expanders = 0;
+    SUPERLU_FREE(dexpanders);
+    dexpanders = 0;
 
 #if ( DEBUGlevel>=1 )
     printf("** pdgstrf_thread_finalize() called\n");

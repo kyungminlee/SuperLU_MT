@@ -1,16 +1,18 @@
+
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 double
 dPivotGrowth(int ncols, SuperMatrix *A, int *perm_c, 
-	     SuperMatrix *L, SuperMatrix *U)
+             SuperMatrix *L, SuperMatrix *U)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
+ *
  *
  * Purpose
  * =======
@@ -26,17 +28,17 @@ dPivotGrowth(int ncols, SuperMatrix *A, int *perm_c,
  *          The number of columns of matrices A, L and U.
  *
  * A        (input) SuperMatrix*
- *	    Original matrix A, permuted by columns, of dimension
+ *          Original matrix A, permuted by columns, of dimension
  *          (A->nrow, A->ncol). The type of A can be:
  *          Stype = NC; Dtype = _D; Mtype = GE.
  *
  * L        (output) SuperMatrix*
- *          The factor L from the factorization Pr*A=L*U; use compressed row 
- *          subscripts storage for supernodes, i.e., L has type: 
+ *          The factor L from the factorization Pr*A=L*U; use compressed row
+ *          subscripts storage for supernodes, i.e., L has type:
  *          Stype = SC; Dtype = _D; Mtype = TRLU.
  *
  * U        (output) SuperMatrix*
- *	    The factor U from the factorization Pr*A*Pc=L*U. Use column-wise
+ *          The factor U from the factorization Pr*A*Pc=L*U. Use column-wise
  *          storage scheme, i.e., U has types: Stype = NC;
  *          Dtype = _D; Mtype = TRU.
  *
@@ -64,7 +66,7 @@ dPivotGrowth(int ncols, SuperMatrix *A, int *perm_c,
     Lval = Lstore->nzval;
     Uval = Ustore->nzval;
     
-    inv_perm_c = (int *) SUPERLU_MALLOC(A->ncol*sizeof(int));
+    inv_perm_c = (int *) SUPERLU_MALLOC( (size_t) A->ncol*sizeof(int) );
     for (j = 0; j < A->ncol; ++j) inv_perm_c[perm_c[j]] = j;
 
     for (k = 0; k <= Lstore->nsuper; ++k) {
@@ -76,25 +78,25 @@ dPivotGrowth(int ncols, SuperMatrix *A, int *perm_c,
 	
 	for (j = fsupc; j < L_LAST_SUPC(k) && j < ncols; ++j) {
 	    maxaj = 0.;
-	    oldcol = inv_perm_c[j];
+            oldcol = inv_perm_c[j];
 	    for (i = Astore->colptr[oldcol]; i < Astore->colptr[oldcol+1]; i++)
-		maxaj = MAX( maxaj, fabs(Aval[i]) );
+		maxaj = SUPERLU_MAX( maxaj, fabs(Aval[i]) );
 	
 	    maxuj = 0.;
 	    for (i = Ustore->colbeg[j]; i < Ustore->colend[j]; i++)
-		maxuj = MAX( maxuj, fabs(Uval[i]) );
+		maxuj = SUPERLU_MAX( maxuj, fabs(Uval[i]) );
 	    
 	    /* Supernode */
 	    for (i = 0; i < nz_in_U; ++i)
-		maxuj = MAX( maxuj, fabs(luval[i]) );
+		maxuj = SUPERLU_MAX( maxuj, fabs(luval[i]) );
 
 	    ++nz_in_U;
 	    luval += nsupr;
 
 	    if ( maxuj == 0. )
-		rpg = MIN( rpg, 1.);
+		rpg = SUPERLU_MIN( rpg, 1.);
 	    else
-		rpg = MIN( rpg, maxaj / maxuj );
+		rpg = SUPERLU_MIN( rpg, maxaj / maxuj );
 	}
 	
 	if ( j >= ncols ) break;

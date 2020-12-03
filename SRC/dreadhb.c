@@ -1,12 +1,15 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * September 1, 1999
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include "pdsp_defs.h"
+
 
 /* Eat up the rest of the current line */
 int dDumpLine(FILE *fp)
@@ -98,11 +101,13 @@ int dReadValues(FILE *fp, int n, double *destination, int perline, int persize)
     return 0;
 }
 
+
+
 void
 dreadhb(int *nrow, int *ncol, int *nonz,
 	double **nzval, int **rowind, int **colptr)
 {
-/*
+/* 
  * Purpose
  * =======
  * 
@@ -243,5 +248,4 @@ dreadhb(int *nrow, int *ncol, int *nonz,
     fclose(fp);
 
 }
-
 

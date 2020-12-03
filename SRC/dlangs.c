@@ -1,14 +1,18 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
- * Modified from lapack routine DLANGE
+ */
+/*
+ * File name:	dlangs.c
+ * History:     Modified from lapack routine DLANGE
  */
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 double dlangs(char *norm, SuperMatrix *A)
 {
@@ -16,7 +20,7 @@ double dlangs(char *norm, SuperMatrix *A)
     Purpose   
     =======   
 
-    dlangs() returns the value of the one norm, or the Frobenius norm, or 
+    DLANGS returns the value of the one norm, or the Frobenius norm, or 
     the infinity norm, or the element of largest absolute value of a 
     real matrix A.   
 
@@ -59,7 +63,7 @@ double dlangs(char *norm, SuperMatrix *A)
     Astore = A->Store;
     Aval   = Astore->nzval;
     
-    if ( MIN(A->nrow, A->ncol) == 0) {
+    if ( SUPERLU_MIN(A->nrow, A->ncol) == 0) {
 	value = 0.;
 	
     } else if (lsame_(norm, "M")) {
@@ -67,7 +71,7 @@ double dlangs(char *norm, SuperMatrix *A)
 	value = 0.;
 	for (j = 0; j < A->ncol; ++j)
 	    for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; i++)
-		value = MAX( value, fabs( Aval[i]) );
+		value = SUPERLU_MAX( value, fabs( Aval[i]) );
 	
     } else if (lsame_(norm, "O") || *(unsigned char *)norm == '1') {
 	/* Find norm1(A). */
@@ -76,13 +80,13 @@ double dlangs(char *norm, SuperMatrix *A)
 	    sum = 0.;
 	    for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; i++) 
 		sum += fabs(Aval[i]);
-	    value = MAX(value,sum);
+	    value = SUPERLU_MAX(value,sum);
 	}
 	
     } else if (lsame_(norm, "I")) {
 	/* Find normI(A). */
-	if ( !(rwork = (double *) SUPERLU_MALLOC(A->nrow * sizeof(double))) )
-	    ABORT("SUPERLU_MALLOC fails for rwork.");
+	if ( !(rwork = (double *) SUPERLU_MALLOC((size_t) A->nrow * sizeof(double))) )
+	    SUPERLU_ABORT("SUPERLU_MALLOC fails for rwork.");
 	for (i = 0; i < A->nrow; ++i) rwork[i] = 0.;
 	for (j = 0; j < A->ncol; ++j)
 	    for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; i++) {
@@ -91,15 +95,15 @@ double dlangs(char *norm, SuperMatrix *A)
 	    }
 	value = 0.;
 	for (i = 0; i < A->nrow; ++i)
-	    value = MAX(value, rwork[i]);
+	    value = SUPERLU_MAX(value, rwork[i]);
 	
 	SUPERLU_FREE (rwork);
 	
     } else if (lsame_(norm, "F") || lsame_(norm, "E")) {
 	/* Find normF(A). */
-	ABORT("Not implemented.");
+	SUPERLU_ABORT("Not implemented.");
     } else
-	ABORT("Illegal norm specified.");
+	SUPERLU_ABORT("Illegal norm specified.");
 
     return (value);
 

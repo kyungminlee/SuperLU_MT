@@ -1,19 +1,24 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
- * Purpose: This program illustrates how to perform the multiple 
- *          factorizations for the matrix with same sparsity pattern yet
- *          different numerical values. Here, computing a fill-reducing
- *          ordering and performing column permutation are done only once.
- *          In addition, the memory for the factors L and U is allocated
- *          once, and re-used in the subsequent factorizations.
+ *
+ * Purpose 
+ * =======
+ *
+ * This program illustrates how to perform the multiple 
+ * factorizations for the matrix with same sparsity pattern yet
+ * different numerical values. Here, computing a fill-reducing
+ * ordering and performing column permutation are done only once.
+ * In addition, the memory for the factors L and U is allocated
+ * once, and re-used in the subsequent factorizations.
  * 
  */
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 main(int argc, char *argv[])
 {
@@ -21,7 +26,7 @@ main(int argc, char *argv[])
     NCformat    *Astore;
     SCPformat   *Lstore;
     NCPformat   *Ustore;
-    pdgstrf_options_t pdgstrf_options;
+    superlumt_options_t superlumt_options;
     pxgstrf_shared_t pxgstrf_shared;
     pdgstrf_threadarg_t *pdgstrf_threadarg;
     int         nprocs;
@@ -44,7 +49,7 @@ main(int argc, char *argv[])
 
     /* Default parameters to control factorization. */
     nprocs = 1;
-    fact  = DOFACT;
+    fact  = EQUILIBRATE;
     trans = NOTRANS;
     panel_size = sp_ienv(1);
     relax = sp_ienv(2);
@@ -64,15 +69,15 @@ main(int argc, char *argv[])
     /* Set up the sparse matrix data structure for A. */
     dCreate_CompCol_Matrix(&A, m, n, nnz, a, asub, xa, SLU_NC, SLU_D, SLU_GE);
 
-    if ( !(rhsb = doubleMalloc(m * nrhs)) ) ABORT("Malloc fails for rhsb[].");
+    if (!(rhsb = doubleMalloc(m * nrhs))) SUPERLU_ABORT("Malloc fails for rhsb[].");
     dCreate_Dense_Matrix(&B, m, nrhs, rhsb, m, SLU_DN, SLU_D, SLU_GE);
     xact = doubleMalloc(n * nrhs);
     ldx = n;
     dGenXtrue(n, nrhs, xact, ldx);
     dFillRHS(trans, nrhs, xact, ldx, &A, &B);
     
-    if ( !(perm_r = intMalloc(m)) ) ABORT("Malloc fails for perm_r[].");
-    if ( !(perm_c = intMalloc(n)) ) ABORT("Malloc fails for perm_c[].");
+    if (!(perm_r = intMalloc(m))) SUPERLU_ABORT("Malloc fails for perm_r[].");
+    if (!(perm_c = intMalloc(n))) SUPERLU_ABORT("Malloc fails for perm_c[].");
 
 
     /********************************
@@ -96,20 +101,20 @@ main(int argc, char *argv[])
     get_perm_c(permc_spec, &A, perm_c);
 
     /* ------------------------------------------------------------
-       Initialize the option structure pdgstrf_options using the
+       Initialize the option structure superlumt_options using the
        user-input parameters;
        Apply perm_c to the columns of original A to form AC.
        ------------------------------------------------------------*/
     refact= NO;
-    pdgstrf_init(nprocs, refact, panel_size, relax,
+    pdgstrf_init(nprocs, fact, trans, refact, panel_size, relax,
 		 u, usepr, drop_tol, perm_c, perm_r,
-		 work, lwork, &A, &AC, &pdgstrf_options, &Gstat);
+		 work, lwork, &A, &AC, &superlumt_options, &Gstat);
 
     /* ------------------------------------------------------------
        Compute the LU factorization of A.
        The following routine will create nprocs threads.
        ------------------------------------------------------------*/
-    pdgstrf(&pdgstrf_options, &AC, perm_r, &L, &U, &Gstat, &info);
+    pdgstrf(&superlumt_options, &AC, perm_r, &L, &U, &Gstat, &info);
     
     flopcnt = 0;
     for (i = 0; i < nprocs; ++i) flopcnt += Gstat.procstat[i].fcops;
@@ -134,15 +139,15 @@ main(int argc, char *argv[])
        ------------------------------------------------------------*/
     StatInit(n, nprocs, &Gstat);
     refact= YES;
-    pdgstrf_init(nprocs, refact, panel_size, relax,
+    pdgstrf_init(nprocs, fact, trans, refact, panel_size, relax,
 		 u, usepr, drop_tol, perm_c, perm_r,
-		 work, lwork, &A, &AC, &pdgstrf_options, &Gstat);
+		 work, lwork, &A, &AC, &superlumt_options, &Gstat);
 
     /* ------------------------------------------------------------
        Compute the LU factorization of A.
        The following routine will create nprocs threads.
        ------------------------------------------------------------*/
-    pdgstrf(&pdgstrf_options, &AC, perm_r, &L, &U, &Gstat, &info);
+    pdgstrf(&superlumt_options, &AC, perm_r, &L, &U, &Gstat, &info);
     
     flopcnt = 0;
     for (i = 0; i < nprocs; ++i) flopcnt += Gstat.procstat[i].fcops;
@@ -158,7 +163,7 @@ main(int argc, char *argv[])
      /* ------------------------------------------------------------
        Deallocate storage after factorization.
        ------------------------------------------------------------*/
-    pdgstrf_finalize(&pdgstrf_options, &AC);
+    pxgstrf_finalize(&superlumt_options, &AC);
 
     printf("\n** Result of sparse LU **\n");
     dinf_norm_error(nrhs, &B, xact); /* Check inf. norm of the error */

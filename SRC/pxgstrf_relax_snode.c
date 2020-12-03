@@ -1,17 +1,18 @@
+
 #include "pdsp_defs.h"
 
 void
 pxgstrf_relax_snode(
 		    const int n, /* number of columns in the matrix */
-		    pdgstrf_options_t *pdgstrf_options,
+		    superlumt_options_t *superlumt_options,
 		    pxgstrf_relax_t *pxgstrf_relax /* relaxed s-nodes */
 		    )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -23,9 +24,9 @@ pxgstrf_relax_snode(
     register int j, parent, rs;
     register int fcol;	 /* beginning of a snode */
     int *desc;  /* no of descendants of each etree node. */
-    int *etree = pdgstrf_options->etree; /* column elimination tree */
-    int relax = pdgstrf_options->relax; /* maximum no of columns allowed 
-					   in a relaxed s-node */
+    int *etree = superlumt_options->etree; /* column elimination tree */
+    int relax = superlumt_options->relax; /* maximum no of columns allowed 
+					     in a relaxed s-node */
     
     desc = intCalloc(n+1);
 

@@ -14,41 +14,53 @@
 #
 #  The machine (platform) identifier to append to the library names
 #
-PLAT = _SOLARIS
+PLAT = _PTHREAD
 
-# Common Libraries
-TMGLIB       	= tmglib$(PLAT).a
-SUPERLULIB   	= superlu_mt$(PLAT).a
-BLASLIB     	= ../blas$(PLAT).a
-MATHLIB	     	= -lm 
-MPLIB		= -lthread
+#
+#  The name of the libraries to be created/linked to
+#
+TMGLIB       	= libtmglib$(PLAT).a
+SUPERLULIB   	= libsuperlu_mt$(PLAT).a
+#BLASDEF	        = -DUSE_VENDOR_BLAS
+BLASLIB = ../lib/libblas$(PLAT).a
+MATHLIB		= -lm 
+MPLIB		= -lpthread
 
 #
 #  The archiver and the flag(s) to use when building archive (library)
-#  If you system has no ranlib, set RANLIB = echo.
+#  If your system has no ranlib, set RANLIB = echo.
 #
-ARCH         	= ar
-ARCHFLAGS    	= cr
+ARCH          	= ar
+ARCHFLAGS     	= cr
 RANLIB       	= ranlib
 
-# for Solaris 2.x
-CC	     	= cc
+############################################################################
 #
 # Definitions used by CPP:
 PREDEFS      	= -D$(PLAT)
 #
-CFLAGS       	= $(PREDEFS) -xO3 -xcg92 $(DBG)
-NOOPTS	     	=
+CC           	= gcc
+CFLAGS       	= $(PREDEFS) -g -DDEBUGlevel=1 -DPRNTlevel=3
+#
+# There are a few files that should NOT be optimized, which appear in the
+# end of SRC/Makefile, taking the flag $(NOOPTS)
+# NOOPTS should be defined to explicitly turn off any optimization.
+NOOPTS	     	= -O0
+
 BLASOPTS	=
-LOADER       	= cc
-LOADOPTS     	= -O
+
+############################################################################
+
 FORTRAN		= f77
 FFLAGS		= -O
 
+############################################################################
+
+LOADER       	= gcc
+LOADOPTS     	= -O -pthread
+
+############################################################################
 #
 #  C preprocessor defs for compilation (-DNoChange, -DAdd_, or -DUpCase)
 #
 CDEFS        	= -DAdd_
-#
-# The following check only works with gcc
-# VERBOSE      	= -Wunused -Wuninitialized

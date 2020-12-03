@@ -38,8 +38,8 @@ double SuperLU_timer_()
 
 #include <sys/types.h>
 #include <sys/times.h>
-#include <time.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #ifndef CLK_TCK
 #define CLK_TCK 60
@@ -49,10 +49,12 @@ double usertimer_()
 {
     struct tms use;
     double tmp;
-    times(&use);
+    int clocks_per_sec = sysconf(_SC_CLK_TCK);
+
+    times ( &use );
     tmp = use.tms_utime;
     tmp += use.tms_stime;
-    return (double)(tmp) / CLK_TCK;
+    return (double)(tmp) / clocks_per_sec;
 }
 
 

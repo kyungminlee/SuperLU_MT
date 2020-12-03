@@ -1,8 +1,9 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  */
 #include "pdsp_defs.h"
@@ -70,15 +71,15 @@ main(int argc, char *argv[])
     Astore = A.Store;
     printf("Dimension %dx%d; # nonzeros %d\n", A.nrow, A.ncol, Astore->nnz);
     
-    if ( !(rhs = doubleMalloc(m * nrhs)) ) ABORT("Malloc fails for rhs[].");
+    if (!(rhs = doubleMalloc(m * nrhs))) SUPERLU_ABORT("Malloc fails for rhs[].");
     dCreate_Dense_Matrix(&B, m, nrhs, rhs, m, SLU_DN, SLU_D, SLU_GE);
     xact = doubleMalloc(n * nrhs);
     ldx = n;
     dGenXtrue(n, nrhs, xact, ldx);
     dFillRHS(trans, nrhs, xact, ldx, &A, &B);
 
-    if ( !(perm_r = intMalloc(m)) ) ABORT("Malloc fails for perm_r[].");
-    if ( !(perm_c = intMalloc(n)) ) ABORT("Malloc fails for perm_c[].");
+    if (!(perm_r = intMalloc(m))) SUPERLU_ABORT("Malloc fails for perm_r[].");
+    if (!(perm_c = intMalloc(n))) SUPERLU_ABORT("Malloc fails for perm_c[].");
 
     /*
      * Get column permutation vector perm_c[], according to permc_spec:
@@ -101,7 +102,7 @@ main(int argc, char *argv[])
     	printf("#NZ in factor U = %d\n", Ustore->nnz);
     	printf("#NZ in L+U = %d\n", Lstore->nnz + Ustore->nnz - L.ncol);
 	
-	superlu_QuerySpace(nprocs, &L, &U, panel_size, &superlu_memusage);
+	superlu_dQuerySpace(nprocs, &L, &U, panel_size, &superlu_memusage);
 	printf("L\\U MB %.3f\ttotal MB needed %.3f\texpansions %d\n",
 	       superlu_memusage.for_lu/1024/1024, 
 	       superlu_memusage.total_needed/1024/1024,

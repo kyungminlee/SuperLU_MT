@@ -41,6 +41,7 @@ cleanlib:
 	( cd SRC; $(MAKE) clean )
 	( cd TESTING/MATGEN; $(MAKE) clean )
 	( cd CBLAS; $(MAKE) clean )
+	( cd lib; rm -f *.a )
 	( rm -f *.a )
 
 cleantesting:

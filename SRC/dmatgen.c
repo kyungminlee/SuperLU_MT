@@ -1,13 +1,14 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  */
 #include <stdlib.h>
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 /*
  * Generate a banded square matrix A, with dimension n and semi-bandwidth b.
@@ -37,8 +38,8 @@ dband(int n, int b, int nonz, double **nzval, int **rowind, int **colptr)
 	xa[j] = lasta;
 	val = &a[lasta];
 	row = &asub[lasta];
-	ilow = MAX(0, j - ub);
-	ihigh = MIN(n-1, j + lb);
+	ilow = SUPERLU_MAX(0, j - ub);
+	ihigh = SUPERLU_MIN(n-1, j + lb);
 	for (i = ilow; i <= ihigh; ++i) {
 	    val[i-ilow] = dlaran_(iseed);
 	    row[i-ilow] = i;
@@ -82,7 +83,7 @@ dblockdiag(int nb, /* number of blocks */
 	    val = &a[lasta];
 	    row = &asub[lasta];
 	    for (i = 0; i < bs; ++i) {
-		val[i] = dlaran_(iseed);
+            	val[i] = dlaran_(iseed);
 		row[i] = i + rstart;
 	    }
 	    lasta += bs;

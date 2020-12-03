@@ -19,10 +19,10 @@ include ../make.inc
 #       make
 #  without any arguments creates all four test programs.
 #  The executable files are called
-#       plintsts
-#       plintstd
-#       plintstc
-#       plintstz
+#       pstest
+#       pdtest
+#       pctest
+#       pztest
 #
 #  To remove the object files after the executable files have been
 #  created, enter
@@ -37,22 +37,63 @@ HEADER  = ../SRC
 
 ALINTST = sp_ienv.o
 
+SLINTST = psdrive.o sp_sconvert.o psgst01.o psgst02.o psgst04.o psgst07.o \
+	  psgssv.o psgssvx.o
+
 DLINTST = pddrive.o sp_dconvert.o pdgst01.o pdgst02.o pdgst04.o pdgst07.o \
 	  pdgssv.o pdgssvx.o
 
-double: ./plintstd pdtest.out
+CLINTST = pcdrive.o sp_cconvert.o pcgst01.o pcgst02.o pcgst04.o pcgst07.o \
+	  pcgssv.o pcgssvx.o
 
-./plintstd: $(DLINTST) $(ALINTST) ../$(SUPERLULIB) $(TMGLIB)
+ZLINTST = pzdrive.o sp_zconvert.o pzgst01.o pzgst02.o pzgst04.o pzgst07.o \
+	  pzgssv.o pzgssvx.o
+
+all: single double complex complex16
+
+pstest: $(SLINTST) $(ALINTST) ../lib/$(SUPERLULIB) $(TMGLIB)
+	$(LOADER) $(LOADOPTS) $(SLINTST) $(ALINTST) \
+	$(TMGLIB) ../lib/$(SUPERLULIB) $(BLASLIB) -lm $(MPLIB) -o $@
+
+pdtest: $(DLINTST) $(ALINTST) ../lib/$(SUPERLULIB) $(TMGLIB)
 	$(LOADER) $(LOADOPTS) $(DLINTST) $(ALINTST) \
-        $(TMGLIB) ../$(SUPERLULIB) $(BLASLIB) -lm $(MPLIB) -o $@
+	$(TMGLIB) ../lib/$(SUPERLULIB) $(BLASLIB) -lm $(MPLIB) -o $@
 
-pdtest.out: plintstd pdtest.csh
-	@echo Testing DOUBLE PRECISION linear equation routines 
+pctest: $(CLINTST) $(ALINTST) ../lib/$(SUPERLULIB) $(TMGLIB)
+	$(LOADER) $(LOADOPTS) $(CLINTST) $(ALINTST) \
+	$(TMGLIB) ../lib/$(SUPERLULIB) $(BLASLIB) -lm $(MPLIB) -o $@
+
+pztest: $(ZLINTST) $(ALINTST) ../lib/$(SUPERLULIB) $(TMGLIB)
+	$(LOADER) $(LOADOPTS) $(ZLINTST) $(ALINTST) \
+	$(TMGLIB) ../lib/$(SUPERLULIB) $(BLASLIB) -lm $(MPLIB) -o $@
+
+single: pdtest pstest.out
+
+double: pdtest pdtest.out
+
+complex: pctest pctest.out
+
+complex16: pztest pztest.out
+
+pstest.out: pstest pstest.csh
+	@echo Testing SINGLE PRECISION linear equation routines 
+	csh pstest.csh
+
+pdtest.out: pdtest pdtest.csh
+	@echo Testing DOUBLE PRECISION linear equation routines
 	csh pdtest.csh
+
+pctest.out: pctest pctest.csh
+	@echo Testing SINGLE COMPLEX PRECISION linear equation routines
+	csh pctest.csh
+
+pztest.out: pztest pztest.csh
+	@echo Testing DOUBLE COMPLEX PRECISION linear equation routines
+	csh pztest.csh
 
 .c.o:
 	$(CC) $(CFLAGS) $(CDEFS) -I$(HEADER) -c $< $(VERBOSE)
 
 clean:	
-	rm -f *.o plintst* *.out
+	rm -f *.o p*test *.out
 

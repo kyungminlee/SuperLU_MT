@@ -1,13 +1,15 @@
+
 #include "pdsp_defs.h"
 
 void
 *pdgstrf_thread(void *arg)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
+ *
  *
  * Purpose
  * =======
@@ -91,7 +93,7 @@ void
 #if ( MACH==SGI || MACH==ORIGIN )
 #if ( MACH==SGI )
     int         pnum = mpc_my_threadnum();
-#else ( MACH==ORIGIN )
+#elif ( MACH==ORIGIN )
     int         pnum = mp_my_threadnum();
 #endif
     pdgstrf_threadarg_t *thr_arg = &((pdgstrf_threadarg_t *)arg)[pnum];
@@ -101,14 +103,14 @@ void
 #endif
 
     /* Unpack the options argument */
-    pdgstrf_options_t *pdgstrf_options= thr_arg->pdgstrf_options;
+    superlumt_options_t *superlumt_options = thr_arg->superlumt_options;
     pxgstrf_shared_t  *pxgstrf_shared= thr_arg->pxgstrf_shared;
-    int         panel_size = pdgstrf_options->panel_size;
-    double      diag_pivot_thresh = pdgstrf_options->diag_pivot_thresh;
-    yes_no_t    *usepr     = &pdgstrf_options->usepr; /* may be modified */
-    int         *etree     = pdgstrf_options->etree;
-    int         *super_bnd = pdgstrf_options->part_super_h;
-    int         *perm_r    = pdgstrf_options->perm_r;
+    int         panel_size = superlumt_options->panel_size;
+    double     diag_pivot_thresh = superlumt_options->diag_pivot_thresh;
+    yes_no_t    *usepr     = &superlumt_options->usepr; /* may be modified */
+    int         *etree     = superlumt_options->etree;
+    int         *super_bnd = superlumt_options->part_super_h;
+    int         *perm_r    = superlumt_options->perm_r;
     int         *inv_perm_c= pxgstrf_shared->inv_perm_c;
     int         *inv_perm_r= pxgstrf_shared->inv_perm_r;
     int	        *xprune    = pxgstrf_shared->xprune;
@@ -222,9 +224,9 @@ void
 	    /* Nondomain panels */
 #ifdef PROFILE
 	    flopcnt = Gstat->procstat[pnum].fcops;
-	    panstat[jcol].pnum = pnum;
+	    Gstat->panstat[jcol].pnum = pnum;
 	    TIC(t1);
-	    panstat[jcol].starttime = t1;
+	    Gstat->panstat[jcol].starttime = t1;
 #endif
 	    if ( pxgstrf_shared->pan_status[jcol].type == RELAXED_SNODE ) {
 		
@@ -383,11 +385,11 @@ void
 	    STATE( jcol ) = DONE; /* Release panel jcol. */
 	    
 #ifdef PROFILE
-	    TOC(panstat[jcol].fctime, t1);
-	    panstat[jcol].flopcnt += Gstat->procstat[pnum].fcops - flopcnt;
+	    TOC(Gstat->panstat[jcol].fctime, t1);
+	    Gstat->panstat[jcol].flopcnt += Gstat->procstat[pnum].fcops - flopcnt;
 	    /*if ( Glu->tasks_remain < P ) {
-		flops_last_P_panels += panstat[jcol].flopcnt;
-		printf("Panel %d, flops %e\n", jcol, panstat[jcol].flopcnt);
+		flops_last_P_panels += Gstat->panstat[jcol].flopcnt;
+		printf("Panel %d, flops %e\n", jcol, Gstat->panstat[jcol].flopcnt);
 		fflush(stdout);
 	    } */
 #endif

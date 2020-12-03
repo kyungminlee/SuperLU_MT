@@ -1,18 +1,22 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
- * Purpose: This program illustrates how to integrate the SPMD mode
- *          of the factor routine pdgstrf_thread() into a larger SPMD 
- *          application code, and manage the threads yourself.
- *          In this example, the threads creation happens only once.
+ * Purpose
+ * =======
+ *
+ * This program illustrates how to integrate the SPMD mode
+ * of the factor routine pdgstrf_thread() into a larger SPMD 
+ * application code, and manage the threads yourself.
+ * In this example, the threads creation happens only once.
  * 
  */
 #include <stdlib.h> /* for getenv and atoi */
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 /* Arguments passed to each dot product thread. */
 typedef struct {
@@ -46,12 +50,13 @@ main(int argc, char *argv[])
     NCformat    *Astore;
     SCPformat   *Lstore;
     NCPformat   *Ustore;
-    pdgstrf_options_t pdgstrf_options;
+    superlumt_options_t superlumt_options;
     pxgstrf_shared_t pxgstrf_shared;
     pdgstrf_threadarg_t *pdgstrf_threadarg;
     pddot_threadarg_t *pddot_threadarg;
     dspmd_arg_t *dspmd_arg;
     int         nprocs;
+    fact_t      fact;
     trans_t     trans;
     yes_no_t    refact, usepr;
     double      u, drop_tol;
@@ -67,6 +72,7 @@ main(int argc, char *argv[])
     Gstat_t Gstat;
     int    vlength;
     double *xvector, xdot, temp;
+    double zero = 0.0;
 #if ( MACH==SUN )
     thread_t  *thread_id;
 #elif ( MACH==DEC || MACH==PTHREAD )
@@ -77,6 +83,7 @@ main(int argc, char *argv[])
 
     /* Default parameters to control factorization. */
     nprocs = 1;
+    fact  = EQUILIBRATE;
     trans = NOTRANS;
     refact= NO;
     panel_size = sp_ienv(1);
@@ -97,15 +104,15 @@ main(int argc, char *argv[])
     /* Set up the sparse matrix data structure for A. */
     dCreate_CompCol_Matrix(&A, m, n, nnz, a, asub, xa, SLU_NC, SLU_D, SLU_GE);
 
-    if ( !(rhsb = doubleMalloc(m * nrhs)) ) ABORT("Malloc fails for rhsb[].");
+    if (!(rhsb = doubleMalloc(m * nrhs))) SUPERLU_ABORT("Malloc fails for rhsb[].");
     dCreate_Dense_Matrix(&B, m, nrhs, rhsb, m, SLU_DN, SLU_D, SLU_GE);
     xact = doubleMalloc(n * nrhs);
     ldx = n;
     dGenXtrue(n, nrhs, xact, ldx);
     dFillRHS(trans, nrhs, xact, ldx, &A, &B);
     
-    if ( !(perm_r = intMalloc(m)) ) ABORT("Malloc fails for perm_r[].");
-    if ( !(perm_c = intMalloc(n)) ) ABORT("Malloc fails for perm_c[].");
+    if (!(perm_r = intMalloc(m))) SUPERLU_ABORT("Malloc fails for perm_r[].");
+    if (!(perm_c = intMalloc(n))) SUPERLU_ABORT("Malloc fails for perm_c[].");
 
     /* ------------------------------------------------------------
        Get column permutation vector perm_c[], according to permc_spec:
@@ -125,27 +132,29 @@ main(int argc, char *argv[])
     StatInit(n, nprocs, &Gstat);
 
     /* ------------------------------------------------------------
-       Initialize the option structure pdgstrf_options using the
+       Initialize the option structure superlumt_options using the
        user-input parameters;
        Apply perm_c to the columns of original A to form AC.
        ------------------------------------------------------------*/
-    pdgstrf_init(nprocs, refact, panel_size, relax,
+    pdgstrf_init(nprocs, fact, trans, refact, panel_size, relax,
 		 u, usepr, drop_tol, perm_c, perm_r,
-		 work, lwork, &A, &AC, &pdgstrf_options, &Gstat);
+		 work, lwork, &A, &AC, &superlumt_options, &Gstat);
 
     /* --------------------------------------------------------------
        Initializes the parallel data structures for pdgstrf_thread().
        --------------------------------------------------------------*/
-    pdgstrf_threadarg = pdgstrf_thread_init(&AC, &L, &U, &pdgstrf_options,
+    pdgstrf_threadarg = pdgstrf_thread_init(&AC, &L, &U, &superlumt_options,
 					    &pxgstrf_shared, &Gstat, &info);
     
     /* ------------------------------------------------------------
        Initialization for inner product routine.
        ------------------------------------------------------------*/
     vlength = 1000;
-    xdot = 0;
+    xdot = zero;
     xvector = (double *) malloc(vlength * sizeof(double));
-    for (i = 0; i < vlength; ++i) xvector[i] = i+1;
+    for (i = 0; i < vlength; ++i){
+        xvector[i] = i+1;
+    }
     pddot_threadarg = (pddot_threadarg_t *) 
         SUPERLU_MALLOC(nprocs * sizeof(pddot_threadarg_t));
 #if ( MACH==SUN )
@@ -255,7 +264,7 @@ main(int argc, char *argv[])
      /* ------------------------------------------------------------
        Deallocate storage after factorization.
        ------------------------------------------------------------*/
-    pdgstrf_finalize(&pdgstrf_options, &AC);
+    pxgstrf_finalize(&superlumt_options, &AC);
 
 
     /* ------------------------------------------------------------
@@ -272,6 +281,8 @@ main(int argc, char *argv[])
     printf("No of nonzeros in factor U = %d\n", Ustore->nnz);
     printf("No of nonzeros in L+U = %d\n", Lstore->nnz + Ustore->nnz - n);
     fflush(stdout);
+
+/* DAN FIX THIS */
 
     temp = vlength*(vlength+1)*(2*vlength+1)/6;
     printf("\n** Result of dot product **\n");
@@ -335,6 +346,7 @@ void
     double *x = pddot_arg->x;
     int chunk, start, end;
     double temp;
+    double zero = 0.0;
 
     chunk = len / nprocs;
     start = i * chunk;
@@ -343,8 +355,10 @@ void
     printf("(%d) nprocs %d,  chunk %d, start %d, end %d\n", 
 	   i, nprocs, chunk, start, end);
 
-    temp = 0;
-    for (i = start; i < end; ++i) temp += x[i]*x[i];
+    temp = zero;
+    for (i = start; i < end; ++i){
+        temp += x[i]*x[i];
+    }
    
 #if ( MACH==SUN )
     mutex_lock( &pddot_lock );

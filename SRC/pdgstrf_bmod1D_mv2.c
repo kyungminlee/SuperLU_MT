@@ -1,7 +1,7 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "pdsp_defs.h"
-#include "util.h"
 
 
 void dlsolve(int, int, double *, double *);
@@ -31,10 +31,10 @@ pdgstrf_bmod1D_mv2(
 		   )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -44,7 +44,9 @@ pdgstrf_bmod1D_mv2(
  *    Results are returned in SPA dense[*,w].
  *
  */
-    double  zero = 0.0;
+
+    double      zero = 0.0;
+    double      one = 1.0;
 
 #if ( MACH==CRAY_PVP )
     _fcd ftcs1 = _cptofcd("L", strlen("L")),
@@ -53,7 +55,7 @@ pdgstrf_bmod1D_mv2(
 #endif
 #ifdef USE_VENDOR_BLAS
     int          incx = 1, incy = 1;
-    double       alpha = 1.0, beta = zero;
+    double       alpha = one, beta = zero;
 #endif
 
     double       ukj, ukj1, ukj2;
@@ -69,7 +71,7 @@ pdgstrf_bmod1D_mv2(
     int  *col_marker, *col_marker1; /* each column of the spa_marker[*,w] */
     int  *col_lsub, *col_lsub1;   /* each column of the panel_lsub[*,w] */
     int          *lsub, *xlsub_end;
-    double       *lusup;
+    double	*lusup;
     int          *xlusup;
     register float flopcnt;
     
@@ -113,7 +115,7 @@ if (jcol == BADPAN && krep == BADREP) {
 	segsze = krep - kfnz + 1;
 	luptr = xlusup[fsupc];
 
-	flopcnt = segsze * (segsze - 1) + 2 * nrow * segsze;
+        flopcnt = segsze * (segsze - 1) + 2 * nrow * segsze;
 	Gstat->procstat[pnum].fcops += flopcnt;
 
 	/* Case 1: Update U-segment of size 1 -- col-col update */
@@ -132,7 +134,7 @@ if (krep == BADCOL && jj == -1) {
 #endif	    
 	    for (i = lptr + nsupc; i < xlsub_end[fsupc]; i++) {
 		irow = lsub[i];
-		dense_col[irow] -= ukj * lusup[luptr];
+                dense_col[irow] -= ukj * lusup[luptr];
 		++luptr;
 #ifdef SCATTER_FOUND		
 		if ( col_marker[irow] != jj ) {
@@ -155,14 +157,14 @@ if (krep == BADCOL && jj == -1) {
 	    ukj1 = dense_col[lsub[krep_ind - 1]];
 	    luptr1 = luptr - nsupr;
 	    if ( segsze == 2 ) {
-		ukj -= ukj1 * lusup[luptr1];
+                ukj -= ukj1 * lusup[luptr1];
 		dense_col[lsub[krep_ind]] = ukj;
 /*#pragma ivdep*/
 		for (i = lptr + nsupc; i < xlsub_end[fsupc]; ++i) {
 		    irow = lsub[i];
 		    ++luptr;  ++luptr1;
-		    dense_col[irow] -= (ukj * lusup[luptr]
-					+ ukj1 * lusup[luptr1]);
+                    dense_col[irow] -= (ukj * lusup[luptr]
+                                                + ukj1 * lusup[luptr1]);
 #ifdef SCATTER_FOUND		
 		    if ( col_marker[irow] != jj ) {
 			col_marker[irow] = jj;
@@ -173,15 +175,15 @@ if (krep == BADCOL && jj == -1) {
 	    } else {
 		ukj2 = dense_col[lsub[krep_ind - 2]];
 		luptr2 = luptr1 - nsupr;
-		ukj1 -= ukj2 * lusup[luptr2-1];
-		ukj = ukj - ukj1*lusup[luptr1] - ukj2*lusup[luptr2];
+                ukj1 -= ukj2 * lusup[luptr2-1];
+                ukj = ukj - ukj1*lusup[luptr1] - ukj2*lusup[luptr2];
 		dense_col[lsub[krep_ind]] = ukj;
 		dense_col[lsub[krep_ind-1]] = ukj1;
 		for (i = lptr + nsupc; i < xlsub_end[fsupc]; ++i) {
 		    irow = lsub[i];
 		    ++luptr; ++luptr1; ++luptr2;
-		    dense_col[irow] -= (ukj * lusup[luptr]
-				+ ukj1*lusup[luptr1] + ukj2*lusup[luptr2]);
+                    dense_col[irow] -= (ukj * lusup[luptr]
+                             + ukj1*lusup[luptr1] + ukj2*lusup[luptr2]);
 #ifdef SCATTER_FOUND		
 		    if ( col_marker[irow] != jj ) {
 			col_marker[irow] = jj;
@@ -233,6 +235,7 @@ if (krep == BADCOL && jj == -1) {
 		    dlsolve ( nsupr, segsze, &lusup[luptr], tri[j] );
 		    
 #endif
+
 #ifdef TIMING
 		    utime[FLOAT] += SuperLU_timer_() - f_time;
 #endif	    
@@ -278,7 +281,7 @@ if (krep == BADCOL && jj == -1) {
 		}
 		
 		/* Do matrix-vector multiply with two destinations */
-		kfnz = MAX( kfnz2[0], kfnz2[1] );
+		kfnz = SUPERLU_MAX( kfnz2[0], kfnz2[1] );
 		no_zeros = kfnz - fsupc;
 		segsze = krep - kfnz + 1;
 		luptr = xlusup[fsupc] + nsupr * no_zeros + nsupc;
@@ -326,7 +329,7 @@ if (krep == BADCOL && jj == -1) {
 /*#pragma ivdep*/
 		    for (i = 0; i < nrow; i++) {
 			irow = lsub[isub];
-			dense_col1[irow] -= matvec[j][i]; /* Scatter-add */
+            	        dense_col1[irow] -= matvec[j][i]; /* Scatter-add */
 #ifdef SCATTER_FOUND		
 			if ( col_marker1[irow] != jj2[j] ) {
 			    col_marker1[irow] = jj2[j];
@@ -418,7 +421,7 @@ if (krep == BADCOL && jj == -1) {
 	/* Scatter matvec[*] into SPA dense[*]. */
 	for (i = 0; i < nrow; i++) {
 	    irow = lsub[isub];
-	    dense_col1[irow] -= matvec[0][i]; /* Scatter-add */
+            dense_col1[irow] -= matvec[0][i]; /* Scatter-add */
 #ifdef SCATTER_FOUND		
 	    if ( col_marker1[irow] != jj2[0] ) {
 		col_marker1[irow] = jj2[0];

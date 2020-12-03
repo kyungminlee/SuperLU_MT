@@ -1,18 +1,22 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
- * Modified from LAPACK routine DLAQGE
+ */
+/*
+ * File name:	dlaqgs.c
+ * History:     Modified from LAPACK routine DLAQGE
  */
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 void
 dlaqgs(SuperMatrix *A, double *r, double *c, 
-       double rowcnd, double colcnd, double amax, equed_t *equed)
+	double rowcnd, double colcnd, double amax, equed_t *equed)
 {
 /*
     Purpose   
@@ -29,7 +33,7 @@ dlaqgs(SuperMatrix *A, double *r, double *c,
     A       (input/output) SuperMatrix*
             On exit, the equilibrated matrix.  See EQUED for the form of 
             the equilibrated matrix. The type of A can be:
-	    Stype = NC; Dtype = _D; Mtype = GE.
+	    Stype = SLU_NC; Dtype = SLU_D; Mtype = SLU_GE.
 	    
     R       (input) double*, dimension (A->nrow)
             The row scale factors for A.
@@ -48,10 +52,10 @@ dlaqgs(SuperMatrix *A, double *r, double *c,
 	    
     EQUED   (output) equed_t*
             Specifies the form of equilibration that was done.   
-            = NOEQUIL: No equilibration   
-            = ROW:  Row equilibration, i.e., A has been premultiplied by  
+            = NOEQUIL: No equilibration
+            = ROW:  Row equilibration, i.e., A has been premultiplied by
                     diag(R).   
-            = COL:  Column equilibration, i.e., A has been postmultiplied  
+            = COL:  Column equilibration, i.e., A has been postmultiplied
                     by diag(C).   
             = BOTH: Both row and column equilibration, i.e., A has been
                     replaced by diag(R) * A * diag(C).   

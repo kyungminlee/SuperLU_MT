@@ -1,12 +1,13 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  */
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 main(int argc, char *argv[])
 {
@@ -25,7 +26,7 @@ main(int argc, char *argv[])
     int         *perm_c; /* column permutation vector */
     int         *perm_r; /* row permutations from partial pivoting */
     void        *work;
-    pdgstrf_options_t pdgstrf_options;
+    superlumt_options_t superlumt_options;
     int         info, lwork, nrhs, ldx, panel_size, relax;
     int         m, n, nnz, permc_spec;
     int         i, firstfact;
@@ -38,7 +39,7 @@ main(int argc, char *argv[])
 
     /* Default parameters to control factorization. */
     nprocs = 1;
-    fact  = DOFACT;
+    fact  = EQUILIBRATE;
     trans = NOTRANS;
     equed = NOEQUIL;
     refact= NO;
@@ -58,7 +59,7 @@ main(int argc, char *argv[])
 	work = SUPERLU_MALLOC(lwork);
 	printf("Use work space of size LWORK = %d bytes\n", lwork);
 	if ( !work ) {
-	    ABORT("DLINSOLX: cannot allocate work[]");
+	    SUPERLU_ABORT("DLINSOLX: cannot allocate work[]");
 	}
     }
 
@@ -93,8 +94,8 @@ main(int argc, char *argv[])
     Astore = A.Store;
     printf("Dimension %dx%d; # nonzeros %d\n", A.nrow, A.ncol, Astore->nnz);
     
-    if ( !(rhsb = doubleMalloc(m * nrhs)) ) ABORT("Malloc fails for rhsb[].");
-    if ( !(rhsx = doubleMalloc(m * nrhs)) ) ABORT("Malloc fails for rhsx[].");
+    if (!(rhsb = doubleMalloc(m * nrhs))) SUPERLU_ABORT("Malloc fails for rhsb[].");
+    if (!(rhsx = doubleMalloc(m * nrhs))) SUPERLU_ABORT("Malloc fails for rhsx[].");
     dCreate_Dense_Matrix(&B, m, nrhs, rhsb, m, SLU_DN, SLU_D, SLU_GE);
     dCreate_Dense_Matrix(&X, m, nrhs, rhsx, m, SLU_DN, SLU_D, SLU_GE);
     xact = doubleMalloc(n * nrhs);
@@ -102,16 +103,16 @@ main(int argc, char *argv[])
     dGenXtrue(n, nrhs, xact, ldx);
     dFillRHS(trans, nrhs, xact, ldx, &A, &B);
     
-    if ( !(perm_r = intMalloc(m)) ) ABORT("Malloc fails for perm_r[].");
-    if ( !(perm_c = intMalloc(n)) ) ABORT("Malloc fails for perm_c[].");
-    if ( !(R = (double *) SUPERLU_MALLOC(A.nrow * sizeof(double))) ) 
-        ABORT("SUPERLU_MALLOC fails for R[].");
+    if (!(perm_r = intMalloc(m))) SUPERLU_ABORT("Malloc fails for perm_r[].");
+    if (!(perm_c = intMalloc(n))) SUPERLU_ABORT("Malloc fails for perm_c[].");
+    if (!(R = (double *) SUPERLU_MALLOC(A.nrow * sizeof(double)))) 
+        SUPERLU_ABORT("SUPERLU_MALLOC fails for R[].");
     if ( !(C = (double *) SUPERLU_MALLOC(A.ncol * sizeof(double))) )
-        ABORT("SUPERLU_MALLOC fails for C[].");
+        SUPERLU_ABORT("SUPERLU_MALLOC fails for C[].");
     if ( !(ferr = (double *) SUPERLU_MALLOC(nrhs * sizeof(double))) )
-        ABORT("SUPERLU_MALLOC fails for ferr[].");
+        SUPERLU_ABORT("SUPERLU_MALLOC fails for ferr[].");
     if ( !(berr = (double *) SUPERLU_MALLOC(nrhs * sizeof(double))) ) 
-        ABORT("SUPERLU_MALLOC fails for berr[].");
+        SUPERLU_ABORT("SUPERLU_MALLOC fails for berr[].");
 
     /*
      * Get column permutation vector perm_c[], according to permc_spec:
@@ -123,25 +124,27 @@ main(int argc, char *argv[])
     permc_spec = 1;
     get_perm_c(permc_spec, &A, perm_c);
 
-    pdgstrf_options.nprocs = nprocs;
-    pdgstrf_options.fact = fact;
-    pdgstrf_options.trans = trans;
-    pdgstrf_options.refact = refact;
-    pdgstrf_options.panel_size = panel_size;
-    pdgstrf_options.relax = relax;
-    pdgstrf_options.diag_pivot_thresh = u;
-    pdgstrf_options.usepr = usepr;
-    pdgstrf_options.drop_tol = drop_tol;
-    pdgstrf_options.perm_c = perm_c;
-    pdgstrf_options.perm_r = perm_r;
-    pdgstrf_options.work = work;
-    pdgstrf_options.lwork = lwork;
+    superlumt_options.nprocs = nprocs;
+    superlumt_options.fact = fact;
+    superlumt_options.trans = trans;
+    superlumt_options.refact = refact;
+    superlumt_options.panel_size = panel_size;
+    superlumt_options.relax = relax;
+    superlumt_options.diag_pivot_thresh = u;
+    superlumt_options.usepr = usepr;
+    superlumt_options.drop_tol = drop_tol;
+    superlumt_options.SymmetricMode = NO;
+    superlumt_options.PrintStat = NO;
+    superlumt_options.perm_c = perm_c;
+    superlumt_options.perm_r = perm_r;
+    superlumt_options.work = work;
+    superlumt_options.lwork = lwork;
     
     /* 
      * Solve the system and compute the condition number
      * and error bounds using pdgssvx.
      */
-    pdgssvx(nprocs, &pdgstrf_options, &A, perm_c, perm_r,
+    pdgssvx(nprocs, &superlumt_options, &A, perm_c, perm_r,
 	    &equed, R, C, &L, &U, &B, &X, &rpg, &rcond,
 	    ferr, berr, &superlu_memusage, &info);
 

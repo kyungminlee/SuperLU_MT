@@ -1,3 +1,4 @@
+
 #include "pdsp_defs.h"
 
 void
@@ -25,10 +26,10 @@ pdgstrf_panel_dfs(
 		  )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -178,14 +179,14 @@ if (jj == BADCOL)
 			else xdfs = xlsub[krep];
 			maxdfs = xprune[krep];
 #ifdef PROFILE
-			procstat[pnum].pruned++;
+			/*Gstat->procstat[pnum].pruned++;*/
 #endif		    
 		    } else {
 			fsupc = SUPER_FSUPC( supno[krep] );
 			xdfs = xlsub[fsupc] + krep-fsupc+1;
 			maxdfs = xlsub_end[fsupc];
 #ifdef PROFILE
-			procstat[pnum].unpruned++;
+			/*Gstat->procstat[pnum].unpruned++;*/
 #endif		    
 		    }
 #ifdef CHK_DFS
@@ -251,14 +252,14 @@ if (jj == BADCOL)
 					    else xdfs = xlsub[krep];
 					    maxdfs = xprune[krep];
 #ifdef PROFILE
-					    procstat[pnum].pruned++;
+					    /*procstat[pnum].pruned++;*/
 #endif		    
 					} else {
 					    fsupc = SUPER_FSUPC(supno[krep]);
 					    xdfs = xlsub[fsupc] + krep-fsupc+1;
 					    maxdfs = xlsub_end[fsupc];
 #ifdef PROFILE
-					    procstat[pnum].unpruned++;
+					    /*procstat[pnum].unpruned++;*/
 #endif		    
 					}
 #ifdef CHK_DFS

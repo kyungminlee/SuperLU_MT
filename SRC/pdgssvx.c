@@ -1,8 +1,9 @@
+
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 void
-pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, 
+pdgssvx(int nprocs, superlumt_options_t *superlumt_options, SuperMatrix *A, 
 	int *perm_c, int *perm_r, equed_t *equed, double *R, double *C,
 	SuperMatrix *L, SuperMatrix *U,
 	SuperMatrix *B, SuperMatrix *X, double *recip_pivot_growth, 
@@ -10,10 +11,10 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
 	superlu_memusage_t *superlu_memusage, int *info)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley, 
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -36,7 +37,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
  *
  *    1.2. Permute columns of A, forming A*Pc, where Pc is a permutation matrix
  *         that usually preserves sparsity.
- *         For more details of this step, see sp_colorder.c.
+ *         For more details of this step, see dsp_colorder.c.
  *
  *    1.3. If fact = DOFACT or EQUILIBRATE, the LU decomposition is used to 
  *         factor the matrix A (after equilibration if fact = EQUILIBRATE) as
@@ -78,7 +79,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
  *    2.2. Permute columns of transpose(A) (rows of A), 
  *         forming transpose(A)*Pc, where Pc is a permutation matrix that
  *         usually preserves sparsity.
- *         For more details of this step, see sp_colorder.c.
+ *         For more details of this step, see dsp_colorder.c.
  *
  *    2.3. If fact = DOFACT or EQUILIBRATE, the LU decomposition is used to 
  *         factor the matrix A (after equilibration if fact = EQUILIBRATE) as
@@ -117,7 +118,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
  *         control to call pdgstrf(), and all threads spawned by pdgstrf() 
  *         are terminated before returning from pdgstrf().
  *
- * pdgstrf_options (input) pdgstrf_options_t*
+ * superlumt_options (input) superlumt_options_t*
  *         The structure defines the input parameters and data structure
  *         to control how the LU factorization will be performed.
  *         The following fields should be defined for this structure:
@@ -197,13 +198,13 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
  *         Stype = NC or NR, Dtype = _D, Mtype = GE. In the future,
  *         more general A will be handled.
  *
- *         On entry, If pdgstrf_options->fact = FACTORED and equed is not 
+ *         On entry, If superlumt_options->fact = FACTORED and equed is not 
  *         NOEQUIL, then A must have been equilibrated by the scaling factors
  *         in R and/or C.  On exit, A is not modified 
- *         if pdgstrf_options->fact = FACTORED or DOFACT, or 
- *         if pdgstrf_options->fact = EQUILIBRATE and equed = NOEQUIL.
+ *         if superlumt_options->fact = FACTORED or DOFACT, or 
+ *         if superlumt_options->fact = EQUILIBRATE and equed = NOEQUIL.
  *
- *         On exit, if pdgstrf_options->fact = EQUILIBRATE and equed is not
+ *         On exit, if superlumt_options->fact = EQUILIBRATE and equed is not
  *         NOEQUIL, A is scaled as follows:
  *         If A->Stype = NC:
  *           equed = ROW:  A := diag(R) * A
@@ -237,8 +238,8 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
  *         determines permutation of rows of transpose(A)
  *         (columns of A) as described above.
  *
- *         If pdgstrf_options->usepr = NO, perm_r is output argument;
- *         If pdgstrf_options->usepr = YES, the pivoting routine will try 
+ *         If superlumt_options->usepr = NO, perm_r is output argument;
+ *         If superlumt_options->usepr = YES, the pivoting routine will try 
  *            to use the input perm_r, unless a certain threshold criterion
  *            is violated. In that case, perm_r is overwritten by a new
  *            permutation determined by partial pivoting or diagonal 
@@ -251,7 +252,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
  *         = COL:  Column equilibration, i.e., A was postmultiplied by diag(C).
  *         = BOTH: Both row and column equilibration, i.e., A was replaced 
  *                 by diag(R)*A*diag(C).
- *         If pdgstrf_options->fact = FACTORED, equed is an input argument, 
+ *         If superlumt_options->fact = FACTORED, equed is an input argument, 
  *         otherwise it is an output argument.
  *
  * R       (input/output) double*, dimension (A->nrow)
@@ -377,7 +378,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
     char      norm[1];
     trans_t   trant;
     int       i, j, info1;
-    double    amax, anorm, bignum, smlnum, colcnd, rowcnd, rcmax, rcmin;
+    double amax, anorm, bignum, smlnum, colcnd, rowcnd, rcmax, rcmin;
     int       n, relax, panel_size;
     Gstat_t   Gstat;
     double    t0;      /* temporary time */
@@ -397,13 +398,13 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
     ldb    = Bstore->lda;
     ldx    = Xstore->lda;
     nrhs   = B->ncol;
-    pdgstrf_options->perm_c = perm_c;
-    pdgstrf_options->perm_r = perm_r;
+    superlumt_options->perm_c = perm_c;
+    superlumt_options->perm_r = perm_r;
 
     *info = 0;
-    dofact = (pdgstrf_options->fact == DOFACT);
-    equil = (pdgstrf_options->fact == EQUILIBRATE);
-    notran = (pdgstrf_options->trans == NOTRANS);
+    dofact = (superlumt_options->fact == DOFACT);
+    equil = (superlumt_options->fact == EQUILIBRATE);
+    notran = (superlumt_options->trans == NOTRANS);
     if (dofact || equil) {
 	*equed = NOEQUIL;
 	rowequ = FALSE;
@@ -419,52 +420,52 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
        Test the input parameters.
        ------------------------------------------------------------*/
     if ( nprocs <= 0 ) *info = -1;
-    else if ( (!dofact && !equil && (pdgstrf_options->fact != FACTORED))
-	      || (!notran && (pdgstrf_options->trans != TRANS) && 
-		 (pdgstrf_options->trans != CONJ))
-	      || (pdgstrf_options->refact != YES && 
-		  pdgstrf_options->refact != NO)
-	      || (pdgstrf_options->usepr != YES &&
-		  pdgstrf_options->usepr != NO)
-	      || pdgstrf_options->lwork < -1 )
+    else if ( (!dofact && !equil && (superlumt_options->fact != FACTORED))
+	      || (!notran && (superlumt_options->trans != TRANS) && 
+		 (superlumt_options->trans != CONJ))
+	      || (superlumt_options->refact != YES && 
+		  superlumt_options->refact != NO)
+	      || (superlumt_options->usepr != YES &&
+		  superlumt_options->usepr != NO)
+	      || superlumt_options->lwork < -1 )
         *info = -2;
     else if ( A->nrow != A->ncol || A->nrow < 0 ||
 	      (A->Stype != SLU_NC && A->Stype != SLU_NR) ||
 	      A->Dtype != SLU_D || A->Mtype != SLU_GE )
 	*info = -3;
-    else if ((pdgstrf_options->fact == FACTORED) && 
+    else if ((superlumt_options->fact == FACTORED) && 
 	     !(rowequ || colequ || (*equed == NOEQUIL))) *info = -6;
     else {
 	if (rowequ) {
 	    rcmin = bignum;
 	    rcmax = 0.;
 	    for (j = 0; j < A->nrow; ++j) {
-		rcmin = MIN(rcmin, R[j]);
-		rcmax = MAX(rcmax, R[j]);
+		rcmin = SUPERLU_MIN(rcmin, R[j]);
+		rcmax = SUPERLU_MAX(rcmax, R[j]);
 	    }
 	    if (rcmin <= 0.) *info = -7;
 	    else if ( A->nrow > 0)
-		rowcnd = MAX(rcmin,smlnum) / MIN(rcmax,bignum);
+		rowcnd = SUPERLU_MAX(rcmin,smlnum) / SUPERLU_MIN(rcmax,bignum);
 	    else rowcnd = 1.;
 	}
 	if (colequ && *info == 0) {
 	    rcmin = bignum;
 	    rcmax = 0.;
 	    for (j = 0; j < A->nrow; ++j) {
-		rcmin = MIN(rcmin, C[j]);
-		rcmax = MAX(rcmax, C[j]);
+		rcmin = SUPERLU_MIN(rcmin, C[j]);
+		rcmax = SUPERLU_MAX(rcmax, C[j]);
 	    }
 	    if (rcmin <= 0.) *info = -8;
 	    else if (A->nrow > 0)
-		colcnd = MAX(rcmin,smlnum) / MIN(rcmax,bignum);
+		colcnd = SUPERLU_MAX(rcmin,smlnum) / SUPERLU_MIN(rcmax,bignum);
 	    else colcnd = 1.;
 	}
 	if (*info == 0) {
-	    if ( B->ncol < 0 || Bstore->lda < MAX(0, A->nrow) ||
+	    if ( B->ncol < 0 || Bstore->lda < SUPERLU_MAX(0, A->nrow) ||
 		      B->Stype != SLU_DN || B->Dtype != SLU_D || 
 		      B->Mtype != SLU_GE )
 		*info = -11;
-	    else if ( X->ncol < 0 || Xstore->lda < MAX(0, A->nrow) ||
+	    else if ( X->ncol < 0 || Xstore->lda < SUPERLU_MAX(0, A->nrow) ||
 		      B->ncol != X->ncol || X->Stype != SLU_DN ||
 		      X->Dtype != SLU_D || X->Mtype != SLU_GE )
 		*info = -12;
@@ -472,7 +473,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
     }
     if (*info != 0) {
 	i = -(*info);
-	xerbla_("dgssvx", &i);
+	xerbla_("pdgssvx", &i);
 	return;
     }
     
@@ -480,8 +481,8 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
     /* ------------------------------------------------------------
        Allocate storage and initialize statistics variables. 
        ------------------------------------------------------------*/
-    panel_size = pdgstrf_options->panel_size;
-    relax = pdgstrf_options->relax;
+    panel_size = superlumt_options->panel_size;
+    relax = superlumt_options->relax;
     StatAlloc(n, nprocs, panel_size, relax, &Gstat);
     StatInit(n, nprocs, &Gstat);
     utime = Gstat.utime;
@@ -504,7 +505,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
 	    notran = 1;
 	}
     } else { /* A->Stype == NC */
-	trant = pdgstrf_options->trans;
+	trant = superlumt_options->trans;
 	AA = A;
     }
 
@@ -532,13 +533,13 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
 	if ( rowequ ) {
 	    for (j = 0; j < nrhs; ++j)
 		for (i = 0; i < A->nrow; ++i) {
-		  Bmat[i + j*ldb] *= R[i];
-	        }
+                        Bmat[i + j*ldb] *= R[i];
+		}
 	}
     } else if ( colequ ) {
 	for (j = 0; j < nrhs; ++j)
 	    for (i = 0; i < A->nrow; ++i) {
-	      Bmat[i + j*ldb] *= C[i];
+                    Bmat[i + j*ldb] *= C[i];
 	    }
     }
 
@@ -551,7 +552,7 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
         /* Obtain column etree, the column count (colcnt_h) and supernode
 	   partition (part_super_h) for the Householder matrix. */
 	t0 = SuperLU_timer_();
-	sp_colorder(AA, perm_c, pdgstrf_options, &AC);
+	sp_colorder(AA, perm_c, superlumt_options, &AC);
 	utime[ETREE] = SuperLU_timer_() - t0;
 
 #if ( PRNTlevel >= 2 )    
@@ -562,14 +563,14 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
 	
 	/* Compute the LU factorization of A*Pc. */
 	t0 = SuperLU_timer_();
-	pdgstrf(pdgstrf_options, &AC, perm_r, L, U, &Gstat, info);
+	pdgstrf(superlumt_options, &AC, perm_r, L, U, &Gstat, info);
 	utime[FACT] = SuperLU_timer_() - t0;
 	
 	flopcnt = 0;
 	for (i = 0; i < nprocs; ++i) flopcnt += Gstat.procstat[i].fcops;
 	ops[FACT] = flopcnt;
 
-	if ( pdgstrf_options->lwork == -1 ) {
+	if ( superlumt_options->lwork == -1 ) {
 	    superlu_memusage->total_needed = *info - A->ncol;
 	    return;
 	}
@@ -630,13 +631,13 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
 	    if ( colequ ) {
 		for (j = 0; j < nrhs; ++j)
 		    for (i = 0; i < A->nrow; ++i) {
-			Xmat[i + j*ldx] *= C[i];
+                        Xmat[i + j*ldx] *= C[i];
 		    }
 	    }
 	} else if ( rowequ ) {
 	    for (j = 0; j < nrhs; ++j)
 		for (i = 0; i < A->nrow; ++i) {
-		    Xmat[i + j*ldx] *= R[i];
+                    Xmat[i + j*ldx] *= R[i];
 		}
 	}
 	
@@ -646,15 +647,15 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
 	
     }
 
-    superlu_QuerySpace(nprocs, L, U, panel_size, superlu_memusage);
+    superlu_dQuerySpace(nprocs, L, U, panel_size, superlu_memusage);
 
     /* ------------------------------------------------------------
        Deallocate storage after factorization.
        ------------------------------------------------------------*/
-    if ( pdgstrf_options->refact == NO ) {
-        SUPERLU_FREE(pdgstrf_options->etree);
-        SUPERLU_FREE(pdgstrf_options->colcnt_h);
-	SUPERLU_FREE(pdgstrf_options->part_super_h);
+    if ( superlumt_options->refact == NO ) {
+        SUPERLU_FREE(superlumt_options->etree);
+        SUPERLU_FREE(superlumt_options->colcnt_h);
+	SUPERLU_FREE(superlumt_options->part_super_h);
     }
     if ( dofact || equil ) {
         Destroy_CompCol_Permuted(&AC);
@@ -667,6 +668,12 @@ pdgssvx(int nprocs, pdgstrf_options_t *pdgstrf_options, SuperMatrix *A,
     /* ------------------------------------------------------------
        Print timings, then deallocate statistic variables.
        ------------------------------------------------------------*/
+#ifdef PROFILE
+    {
+	SCPformat *Lstore = (SCPformat *) L->Store;
+	ParallelProfile(n, Lstore->nsuper+1, Gstat.num_panels, nprocs, &Gstat);
+    }
+#endif
     PrintStat(&Gstat);
     StatFree(&Gstat);
 }

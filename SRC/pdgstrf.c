@@ -1,20 +1,21 @@
+
 #include <stdlib.h> /* for getenv and atoi */
 #include "pdsp_defs.h"
 
 void
-pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
+pdgstrf(superlumt_options_t *superlumt_options, SuperMatrix *A, int *perm_r,
 	SuperMatrix *L, SuperMatrix *U,	Gstat_t *Gstat, int *info)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
  *
- * pdgstrf() computes an LU factorization of a general sparse nrow-by-ncol
+ * PDGSTRF computes an LU factorization of a general sparse nrow-by-ncol
  * matrix A using partial pivoting with row interchanges. The factorization
  * has the form
  *     Pr * A = L * U
@@ -25,7 +26,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
  * Arguments
  * =========
  * 
- * pdgstrf_options (input) pdgstrf_options_t*
+ * superlumt_options (input) superlumt_options_t*
  *        The structure defines the parameters to control how the sparse
  *        LU factorization is performed. The following fields must be set 
  *        by the user:
@@ -75,7 +76,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
  *
  *        o perm_r (int*)
  *	    Column permutation vector of size A->nrow.
- *          If pdgstrf_options->usepr = NO, this is an output argument.
+ *          If superlumt_options->usepr = NO, this is an output argument.
  *
  *        o work (void*) of size lwork
  *          User-supplied work space and space for the output data structures.
@@ -98,8 +99,8 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
  * perm_r (input/output) int*, dimension A->nrow
  *        Row permutation vector which defines the permutation matrix Pr,
  *        perm_r[i] = j means row i of A is in position j in Pr*A.
- *        If pdgstrf_options->usepr = NO, perm_r is output argument;
- *        If pdgstrf_options->usepr = YES, the pivoting routine will try 
+ *        If superlumt_options->usepr = NO, perm_r is output argument;
+ *        If superlumt_options->usepr = YES, the pivoting routine will try 
  *           to use the input perm_r, unless a certain threshold criterion
  *           is violated. In that case, perm_r is overwritten by a new
  *           permutation determined by partial pivoting or diagonal 
@@ -117,7 +118,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
  *
  * Gstat  (output) Gstat_t*
  *        Record all the statistics about the factorization; 
- *        See Gstat_t structure defined in util.h.
+ *        See Gstat_t structure defined in slu_mt_util.h.
  *
  * info   (output) int*
  *        = 0: successful exit
@@ -133,7 +134,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
  */
     pdgstrf_threadarg_t *pdgstrf_threadarg;
     pxgstrf_shared_t pxgstrf_shared;
-    register int nprocs = pdgstrf_options->nprocs;
+    register int nprocs = superlumt_options->nprocs;
     register int i, iinfo;
     double    *utime = Gstat->utime;
     double    usrtime, wtime;
@@ -150,7 +151,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
     /* --------------------------------------------------------------
        Initializes the parallel data structures for pdgstrf_thread().
        --------------------------------------------------------------*/
-    pdgstrf_threadarg = pdgstrf_thread_init(A, L, U, pdgstrf_options,
+    pdgstrf_threadarg = pdgstrf_thread_init(A, L, U, superlumt_options,
 					    &pxgstrf_shared, Gstat, info);
     if ( *info ) return;
 
@@ -175,7 +176,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
 			       0, &thread_id[i])) )
 	{
 	    fprintf(stderr, "thr_create: %d\n", iinfo);
-	    ABORT("thr_creat()");
+	    SUPERLU_ABORT("thr_creat()");
 	}
     }
 	 
@@ -201,7 +202,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
 				    pdgstrf_thread, 
 				    &(pdgstrf_threadarg[i])) ) {
 	    fprintf(stderr, "pthread_create: %d\n", iinfo);
-	    ABORT("pthread_create()");
+	    SUPERLU_ABORT("pthread_create()");
 	}
 	/*	pthread_bind_to_cpu_np(thread_id[i], i);*/
     }
@@ -270,7 +271,7 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
 				    pdgstrf_thread, 
 				    &(pdgstrf_threadarg[i])) ) {
 	    fprintf(stderr, "pthread_create: %d\n", iinfo);
-	    ABORT("pthread_create()");
+	    SUPERLU_ABORT("pthread_create()");
 	}
     }
 	 
@@ -279,6 +280,19 @@ pdgstrf(pdgstrf_options_t *pdgstrf_options, SuperMatrix *A, int *perm_r,
 	pthread_join(thread_id[i], &status);
     SUPERLU_FREE (thread_id);
 /* _PTHREAD */
+
+    /* ------------------------------------------------------------
+       Use openMP.
+       ------------------------------------------------------------*/
+#elif ( MACH==OPENMP ) /* Use openMP ... */
+
+#pragma omp parallel for shared (pdgstrf_threadarg) private (i)
+    /* Stand-alone task loop */
+    for (i = 0; i < nprocs; ++i) {
+        pdgstrf_thread( &(pdgstrf_threadarg[i]) );
+    }
+
+/* _OPENMP */
 
     /* ------------------------------------------------------------
        On all other systems, use single processor.

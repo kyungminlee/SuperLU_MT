@@ -1,5 +1,5 @@
+
 #include "pdsp_defs.h"
-#include "util.h"
 
 int
 sp_dconvert(int m, int n, double *A, int lda, int kl, int ku,
@@ -23,8 +23,8 @@ sp_dconvert(int m, int n, double *A, int lda, int kl, int ku,
 	val = &a[xa[j]];
 	row = &asub[xa[j]];
 
-	ilow = MAX(0, j - ku);
-	ihigh = MIN(n-1, j + kl);
+	ilow = SUPERLU_MAX(0, j - ku);
+	ihigh = SUPERLU_MIN(n-1, j + kl);
 	for (i = ilow; i <= ihigh; ++i) {
 	    val[i-ilow] = A[i + j*lda];
 	    row[i-ilow] = i;

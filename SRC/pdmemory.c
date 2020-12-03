@@ -1,8 +1,9 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  */
 #include <stdio.h>
@@ -22,10 +23,10 @@
 /* -------------------
    Internal prototypes
    ------------------- */
-void    *pxgstrf_expand (int *, MemType,int, int, GlobalLU_t *);
+void    *pdgstrf_expand (int *, MemType,int, int, GlobalLU_t *);
 void    copy_mem_double (int, void *, void *);
 void    pdgstrf_StackCompress(GlobalLU_t *);
-void    pxgstrf_SetupSpace (void *, int);
+void    pdgstrf_SetupSpace (void *, int);
 void    *duser_malloc   (int, int);
 void    duser_free      (int, int);
 
@@ -46,7 +47,7 @@ typedef struct {
 typedef enum {HEAD, TAIL}   stack_end_t;
 typedef enum {SYSTEM, USER} LU_space_t;
 
-ExpHeader *expanders = 0; /* Array of pointers to 4 types of memory */
+ExpHeader *dexpanders = 0; /* Array of pointers to 4 types of memory */
 static LU_stack_t stack;
 static int        no_expand;
 static int        ndim;
@@ -60,26 +61,24 @@ static LU_space_t whichspace; /* 0 - system malloc'd; 1 - user provided */
 #define Reduce(alpha)        ((alpha + 1) / 2)     /* i.e. (alpha-1)/2 + 1 */
 
 /* temporary space used by BLAS calls */
-/*#define NUM_TEMPV(n,w,t,b)  (MAX(n, (t + b)*w))*/
-#define NUM_TEMPV(n,w,t,b)  (MAX( 2*n, (t + b)*w ))
-
+#define NUM_TEMPV(n,w,t,b)  (SUPERLU_MAX( 2*n, (t + b)*w ))
 
 /*
  * Setup the memory model to be used for factorization.
  *    lwork = 0: use system malloc;
  *    lwork > 0: use user-supplied work[] space.
  */
-void pxgstrf_SetupSpace(void *work, int lwork)
+void pdgstrf_SetupSpace(void *work, int lwork)
 {
     if ( lwork == 0 ) {
-	whichspace = SYSTEM; /* malloc/free */
+        whichspace = SYSTEM; /* malloc/free */
     } else if ( lwork > 0 ) {
-	whichspace = USER;   /* user provided space */
-	stack.size = lwork;
-	stack.used = 0;
-	stack.top1 = 0;
-	stack.top2 = lwork;
-	stack.array = (void *) work;
+        whichspace = USER;   /* user provided space */
+        stack.size = lwork;
+        stack.used = 0;
+        stack.top1 = 0;
+        stack.top2 = lwork;
+        stack.array = (void *) work;
     }
 }
 
@@ -115,7 +114,7 @@ void duser_free(int bytes, int which_end)
 
 
 /* Returns the working storage used during factorization */
-int superlu_TempSpace(int n, int w, int p)
+int superlu_dTempSpace(int n, int w, int p)
 {
     register float tmp, ptmp;
     register int iword = sizeof(int), dword = sizeof(double);
@@ -136,7 +135,6 @@ int superlu_TempSpace(int n, int w, int p)
     return (tmp + ptmp);
 }
 
-
 /*
  * superlu_memusage consists of the following fields:
  *    o for_lu (float)
@@ -146,8 +144,8 @@ int superlu_TempSpace(int n, int w, int p)
  *    o expansions (int)
  *      The number of memory expansions during the LU factorization.
  */
-int superlu_QuerySpace(int P, SuperMatrix *L, SuperMatrix *U, int panel_size,
-		       superlu_memusage_t *superlu_memusage)
+int superlu_dQuerySpace(int P, SuperMatrix *L, SuperMatrix *U, int panel_size,
+                       superlu_memusage_t *superlu_memusage)
 {
     SCPformat *Lstore;
     NCPformat *Ustore;
@@ -160,16 +158,16 @@ int superlu_QuerySpace(int P, SuperMatrix *L, SuperMatrix *U, int panel_size,
     dword = sizeof(double);
 
     /* L supernodes of type SCP */
-    superlu_memusage->for_lu = (7*n + 3) * iword 
-                             + Lstore->nzval_colend[n-1] * dword
-	                     + Lstore->rowind_colend[n-1] * iword;
+    superlu_memusage->for_lu = (float) (7*n + 3) * iword
+                             + (float) Lstore->nzval_colend[n-1] * dword
+                             + (float) Lstore->rowind_colend[n-1] * iword;
 
     /* U columns of type NCP */
     superlu_memusage->for_lu += (2*n + 1) * iword
-	+ Ustore->colend[n-1] * (dword + iword);
+        + (float) Ustore->colend[n-1] * (dword + iword);
 
     /* Working storage to support factorization */
-    lwork = superlu_TempSpace(n, panel_size, P);
+    lwork = superlu_dTempSpace(n, panel_size, P);
     superlu_memusage->total_needed = superlu_memusage->for_lu + lwork;
 
     superlu_memusage->expansions = --no_expand;
@@ -177,17 +175,16 @@ int superlu_QuerySpace(int P, SuperMatrix *L, SuperMatrix *U, int panel_size,
     return 0;
 }
 
-
-int pdgstrf_memory_use(const int nzlmax, const int nzumax, const int nzlumax)
+float pdgstrf_memory_use(const int nzlmax, const int nzumax, const int nzlumax)
 {
-    register int iword, dword;
+    register float iword, dword, t;
 
     iword   = sizeof(int);
     dword   = sizeof(double);
-    
-    return (10 * ndim * iword +
-	    nzlmax * iword + nzumax * (iword + dword) + nzlumax * dword);
 
+    t = 10. * ndim * iword + nzlmax * iword + nzumax * (iword + dword)
+	+ nzlumax * dword;
+    return t;
 }
 
 
@@ -199,15 +196,15 @@ int pdgstrf_memory_use(const int nzlmax, const int nzumax, const int nzlumax)
  *     otherwise, return the amount of space actually allocated when
  *     memory allocation failure occurred.
  */
-int
-pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
+float
+pdgstrf_MemInit(int n, int annz, superlumt_options_t *superlumt_options,
 		SuperMatrix *L, SuperMatrix *U, GlobalLU_t *Glu)
 {
-    register int nprocs = pdgstrf_options->nprocs;
-    yes_no_t refact = pdgstrf_options->refact;
-    register int panel_size = pdgstrf_options->panel_size;
-    register int lwork = pdgstrf_options->lwork;
-    void     *work = pdgstrf_options->work;
+    register int nprocs = superlumt_options->nprocs;
+    yes_no_t refact = superlumt_options->refact;
+    register int panel_size = superlumt_options->panel_size;
+    register int lwork = superlumt_options->lwork;
+    void     *work = superlumt_options->work;
     int      iword, dword, retries = 0;
     SCPformat *Lstore;
     NCPformat *Ustore;
@@ -227,8 +224,8 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
     iword     = sizeof(int);
     dword     = sizeof(double);
 
-    if ( !expanders )
-      expanders = (ExpHeader *) SUPERLU_MALLOC(NO_MEMTYPE * sizeof(ExpHeader));
+    if ( !dexpanders )
+      dexpanders = (ExpHeader *) SUPERLU_MALLOC(NO_MEMTYPE * sizeof(ExpHeader));
 
     if ( refact == NO ) {
 
@@ -247,10 +244,10 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 
 	if ( lwork == -1 ) {
 	    return (GluIntArray(n) * iword + 
-		    superlu_TempSpace(n, panel_size, nprocs)
+		    superlu_dTempSpace(n, panel_size, nprocs)
 		    + (nzlmax+nzumax)*iword + (nzlumax+nzumax)*dword);
         } else {
-	    pxgstrf_SetupSpace(work, lwork);
+	    pdgstrf_SetupSpace(work, lwork);
 	}
 	
 	/* Integer pointers for L\U factors */
@@ -276,13 +273,13 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 	    xusub_end  = (int *)duser_malloc((n) * iword, HEAD);
 	}
 
-	lusup = (double *) pxgstrf_expand( &nzlumax, LUSUP, 0, 0, Glu );
-	ucol  = (double *) pxgstrf_expand( &nzumax, UCOL, 0, 0, Glu );
-	lsub  = (int *)    pxgstrf_expand( &nzlmax, LSUB, 0, 0, Glu );
-	usub  = (int *)    pxgstrf_expand( &nzumax, USUB, 0, 1, Glu );
+	lusup = (double *) pdgstrf_expand( &nzlumax, LUSUP, 0, 0, Glu );
+	ucol  = (double *) pdgstrf_expand( &nzumax, UCOL, 0, 0, Glu );
+	lsub  = (int *)    pdgstrf_expand( &nzlmax, LSUB, 0, 0, Glu );
+	usub  = (int *)    pdgstrf_expand( &nzumax, USUB, 0, 1, Glu );
 
 	while ( !ucol || !lsub || !usub ) {
-	    /*ABORT("Not enough core in LUMemInit()");*/
+	    /*SUPERLU_ABORT("Not enough core in LUMemInit()");*/
 #if (PRNTlevel==1)
 	    printf(".. pdgstrf_MemInit(): #retries %d\n", ++retries);
 #endif
@@ -299,14 +296,17 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 		printf("Not enough memory to perform factorization.\n");
 		return (pdgstrf_memory_use(nzlmax, nzumax, nzlumax) + n);
 	    }
-	    ucol  = (double *) pxgstrf_expand( &nzumax, UCOL, 0, 0, Glu );
-	    lsub  = (int *)    pxgstrf_expand( &nzlmax, LSUB, 0, 0, Glu );
-	    usub  = (int *)    pxgstrf_expand( &nzumax, USUB, 0, 1, Glu );
+	    ucol  = (double *) pdgstrf_expand( &nzumax, UCOL, 0, 0, Glu );
+	    lsub  = (int *)    pdgstrf_expand( &nzlmax, LSUB, 0, 0, Glu );
+	    usub  = (int *)    pdgstrf_expand( &nzumax, USUB, 0, 1, Glu );
 	}
 	
 	if ( !lusup )  {
-	    printf("Not enough memory to perform factorization.\n");
-	    return (pdgstrf_memory_use(nzlmax, nzumax, nzlumax) + n);
+	    float t = pdgstrf_memory_use(nzlmax, nzumax, nzlumax) + n;
+	    printf("Not enough memory to perform factorization .. "
+		   "need %.1f GBytes\n", t*1e-9);
+	    fflush(stdout);
+	    return (t);
 	}
 	
     } else { /* refact == YES */
@@ -326,7 +326,7 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 	nzlumax  = Glu->nzlumax;
 	
 	if ( lwork == -1 ) {
-	    return (GluIntArray(n) * iword + superlu_TempSpace(n, panel_size, nprocs)
+	    return (GluIntArray(n) * iword + superlu_dTempSpace(n, panel_size, nprocs)
 		    + (nzlmax+nzumax)*iword + (nzlumax+nzumax)*dword);
         } else if ( lwork == 0 ) {
 	    whichspace = SYSTEM;
@@ -336,15 +336,15 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 	    stack.top2 = lwork;
 	}
 	
-	lsub  = expanders[LSUB].mem  = Lstore->rowind;
-	lusup = expanders[LUSUP].mem = Lstore->nzval;
-	usub  = expanders[USUB].mem  = Ustore->rowind;
-	ucol  = expanders[UCOL].mem  = Ustore->nzval;;
+	lsub  = dexpanders[LSUB].mem  = Lstore->rowind;
+	lusup = dexpanders[LUSUP].mem = Lstore->nzval;
+	usub  = dexpanders[USUB].mem  = Ustore->rowind;
+	ucol  = dexpanders[UCOL].mem  = Ustore->nzval;;
 
-	expanders[LSUB].size         = nzlmax;
-	expanders[LUSUP].size        = nzlumax;
-	expanders[USUB].size         = nzumax;
-	expanders[UCOL].size         = nzumax;	
+	dexpanders[LSUB].size         = nzlmax;
+	dexpanders[LUSUP].size        = nzlumax;
+	dexpanders[USUB].size         = nzumax;
+	dexpanders[UCOL].size         = nzumax;	
     }
 
     Glu->xsup       = xsup;
@@ -367,7 +367,9 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 
 #if ( PRNTlevel>=1 )
     printf(".. pdgstrf_MemInit() refact %d, space? %d, nzlumax %d, nzumax %d, nzlmax %d\n",
-	   refact, whichspace, nzlumax, nzumax, nzlmax);
+	refact, whichspace, nzlumax, nzumax, nzlmax);
+    printf(".. pdgstrf_MemInit() FILL_LUSUP %d, FILL_UCOL %d, FILL_LSUB %d\n",
+	FILL_LUSUP, FILL_UCOL, FILL_LSUB);
     fflush(stdout);
 #endif
 
@@ -382,7 +384,7 @@ pdgstrf_MemInit(int n, int annz, pdgstrf_options_t *pdgstrf_options,
 int
 pdgstrf_WorkInit(int n, int panel_size, int **iworkptr, double **dworkptr)
 {
-    int    isize, dsize, extra;
+    size_t  isize, dsize, extra;
     double *old_ptr;
     int    maxsuper = sp_ienv(3),
            rowblk   = sp_ienv(4);
@@ -432,12 +434,14 @@ void
 pdgstrf_SetRWork(int n, int panel_size, double *dworkptr,
 		 double **dense, double **tempv)
 {
+    double zero = 0.0;
+
     int maxsuper = sp_ienv(3);
     int rowblk   = sp_ienv(4);
     *dense = dworkptr;
     *tempv = *dense + panel_size*n;
-    dfill (*dense, n * panel_size, 0.0);
-    dfill (*tempv, NUM_TEMPV(n,panel_size,maxsuper,rowblk), 0.0);     
+    dfill (*dense, n * panel_size, zero);
+    dfill (*tempv, NUM_TEMPV(n,panel_size,maxsuper,rowblk), zero);     
 }
 	
 /*
@@ -477,9 +481,9 @@ pdgstrf_MemXpand(
 #endif    
 
     if (mem_type == USUB) 
-    	new_mem = pxgstrf_expand(maxlen, mem_type, next, 1, Glu);
+    	new_mem = pdgstrf_expand(maxlen, mem_type, next, 1, Glu);
     else
-	new_mem = pxgstrf_expand(maxlen, mem_type, next, 0, Glu);
+	new_mem = pdgstrf_expand(maxlen, mem_type, next, 0, Glu);
     
     if ( !new_mem ) {
 	int    nzlmax  = Glu->nzlmax;
@@ -522,18 +526,19 @@ copy_mem_double(int howmany, void *old, void *new)
     for (i = 0; i < howmany; i++) dnew[i] = dold[i];
 }
 
+
 /*
  * Expand the existing storage to accommodate more fill-ins.
  */
 void
-*pxgstrf_expand(
-		int *prev_len,   /* length used from previous call */
-		MemType type,    /* which part of the memory to expand */
-		int len_to_copy, /* size of memory to be copied to new store */
-		int keep_prev,   /* = 1: use prev_len;
-				    = 0: compute new_len to expand */
-		GlobalLU_t *Glu  /* modified - global LU data structures */
-		)
+*pdgstrf_expand(
+                int *prev_len,   /* length used from previous call */
+                MemType type,    /* which part of the memory to expand */
+                int len_to_copy, /* size of memory to be copied to new store */
+                int keep_prev,   /* = 1: use prev_len;
+                                    = 0: compute new_len to expand */
+                GlobalLU_t *Glu  /* modified - global LU data structures */
+                )
 {
     double   alpha = EXPAND;
     void     *new_mem, *old_mem;
@@ -542,107 +547,107 @@ void
     if ( no_expand == 0 || keep_prev ) /* First time allocate requested */
         new_len = *prev_len;
     else {
-	new_len = alpha * *prev_len;
+        new_len = alpha * *prev_len;
     }
-    
+
     if ( type == LSUB || type == USUB ) lword = sizeof(int);
     else lword = sizeof(double);
 
     if ( whichspace == SYSTEM ) {
-	new_mem = (void *) SUPERLU_MALLOC(new_len * lword);
-    
-	if ( no_expand != 0 ) {
-	    tries = 0;
-	    if ( keep_prev ) {
-		if ( !new_mem ) return (NULL);
-	    } else {
-		while ( !new_mem ) {
-		    if ( ++tries > 10 ) return (NULL);
-		    alpha = Reduce(alpha);
-		    new_len = alpha * *prev_len;
-		    new_mem = (void *) SUPERLU_MALLOC(new_len * lword); 
-		}
-	    }
-	    if ( type == LSUB || type == USUB ) {
-		copy_mem_int(len_to_copy, expanders[type].mem, new_mem);
-	    } else {
-		copy_mem_double(len_to_copy, expanders[type].mem, new_mem);
-	    }
-	    SUPERLU_FREE (expanders[type].mem);
-	}
-	expanders[type].mem = (void *) new_mem;
+        new_mem = (void *) SUPERLU_MALLOC( (size_t) new_len * lword );
+
+        if ( no_expand != 0 ) {
+            tries = 0;
+            if ( keep_prev ) {
+                if ( !new_mem ) return (NULL);
+            } else {
+                while ( !new_mem ) {
+                    if ( ++tries > 10 ) return (NULL);
+                    alpha = Reduce(alpha);
+                    new_len = alpha * *prev_len;
+                    new_mem = (void *) SUPERLU_MALLOC((size_t) new_len * lword);
+                }
+            }
+            if ( type == LSUB || type == USUB ) {
+                copy_mem_int(len_to_copy, dexpanders[type].mem, new_mem);
+            } else {
+                copy_mem_double(len_to_copy, dexpanders[type].mem, new_mem);
+            }
+            SUPERLU_FREE (dexpanders[type].mem);
+        }
+        dexpanders[type].mem = (void *) new_mem;
 #if ( MACH==SGI || MACH==ORIGIN )
-/*	bzero(new_mem, new_len*lword);*/
-#endif	
-	
+/*      bzero(new_mem, new_len*lword);*/
+#endif
+
     } else { /* whichspace == USER */
-	if ( no_expand == 0 ) {
-	    new_mem = duser_malloc(new_len * lword, HEAD);
-	    if ( NotDoubleAlign(new_mem) &&
-		(type == LUSUP || type == UCOL) ) {
-		old_mem = new_mem;
-		new_mem = (void *)DoubleAlign(new_mem);
-		extra = (char*)new_mem - (char*)old_mem;
-#ifdef CHK_EXPAND		
-		printf("expand(): not aligned, extra %d\n", extra);
-#endif		
-		stack.top1 += extra;
-		stack.used += extra;
-	    }
-	    expanders[type].mem = (void *) new_mem;
-	}
-	else {
-	    tries = 0;
-	    extra = (new_len - *prev_len) * lword;
-	    if ( keep_prev ) {
-		if ( StackFull(extra) ) return (NULL);
-	    } else {
-		while ( StackFull(extra) ) {
-		    if ( ++tries > 10 ) return (NULL);
-		    alpha = Reduce(alpha);
-		    new_len = alpha * *prev_len;
-		    extra = (new_len - *prev_len) * lword;	    
-		}
-	    }
+        if ( no_expand == 0 ) {
+            new_mem = duser_malloc(new_len * lword, HEAD);
+            if ( NotDoubleAlign(new_mem) &&
+                (type == LUSUP || type == UCOL) ) {
+                old_mem = new_mem;
+                new_mem = (void *)DoubleAlign(new_mem);
+                extra = (char*)new_mem - (char*)old_mem;
+#ifdef CHK_EXPAND
+                printf("expand(): not aligned, extra %d\n", extra);
+#endif
+                stack.top1 += extra;
+                stack.used += extra;
+            }
+            dexpanders[type].mem = (void *) new_mem;
+        }
+        else {
+            tries = 0;
+            extra = (new_len - *prev_len) * lword;
+            if ( keep_prev ) {
+                if ( StackFull(extra) ) return (NULL);
+            } else {
+                while ( StackFull(extra) ) {
+                    if ( ++tries > 10 ) return (NULL);
+                    alpha = Reduce(alpha);
+                    new_len = alpha * *prev_len;
+                    extra = (new_len - *prev_len) * lword;
+                }
+            }
 
-	    if ( type != USUB ) {
-		new_mem = (void*)((char*)expanders[type + 1].mem + extra);
-		bytes_to_copy = (char*)stack.array + stack.top1
-		    - (char*)expanders[type + 1].mem;
-		user_bcopy(expanders[type+1].mem, new_mem, bytes_to_copy);
+            if ( type != USUB ) {
+                new_mem = (void*)((char*)dexpanders[type + 1].mem + extra);
+                bytes_to_copy = (char*)stack.array + stack.top1
+                    - (char*)dexpanders[type + 1].mem;
+                user_bcopy(dexpanders[type+1].mem, new_mem, bytes_to_copy);
 
-		if ( type < USUB ) {
-		    Glu->usub = expanders[USUB].mem =
-			(void*)((char*)expanders[USUB].mem + extra);
-		}
-		if ( type < LSUB ) {
-		    Glu->lsub = expanders[LSUB].mem =
-			(void*)((char*)expanders[LSUB].mem + extra);
-		}
-		if ( type < UCOL ) {
-		    Glu->ucol = expanders[UCOL].mem =
-			(void*)((char*)expanders[UCOL].mem + extra);
-		}
-		stack.top1 += extra;
-		stack.used += extra;
-		if ( type == UCOL ) {
-		    stack.top1 += extra;   /* Add same amount for USUB */
-		    stack.used += extra;
-		}
-		
-	    } /* if ... */
+                if ( type < USUB ) {
+                    Glu->usub = dexpanders[USUB].mem =
+                        (void*)((char*)dexpanders[USUB].mem + extra);
+                }
+                if ( type < LSUB ) {
+                    Glu->lsub = dexpanders[LSUB].mem =
+                        (void*)((char*)dexpanders[LSUB].mem + extra);
+                }
+                if ( type < UCOL ) {
+                    Glu->ucol = dexpanders[UCOL].mem =
+                        (void*)((char*)dexpanders[UCOL].mem + extra);
+                }
+                stack.top1 += extra;
+                stack.used += extra;
+                if ( type == UCOL ) {
+                    stack.top1 += extra;   /* Add same amount for USUB */
+                    stack.used += extra;
+                }
 
-	} /* else ... */
+            } /* if ... */
+
+        } /* else ... */
     }
 #ifdef DEBUG
-    printf("pxgstrf_expand[type %d]\n", type);
+    printf("pdgstrf_expand[type %d]\n", type);
 #endif
-    expanders[type].size = new_len;
+    dexpanders[type].size = new_len;
     *prev_len = new_len;
     if ( no_expand ) ++no_expand;
-    
-    return (void *) expanders[type].mem;
-    
+
+    return (void *) dexpanders[type].mem;
+
 } /* expand */
 
 
@@ -717,7 +722,7 @@ dallocateA(int n, int nnz, double **a, int **asub, int **xa)
 double *doubleMalloc(int n)
 {
     double *buf;
-    buf = (double *) SUPERLU_MALLOC(n * sizeof(double)); 
+    buf = (double *) SUPERLU_MALLOC( (size_t) n * sizeof(double) ); 
     if ( !buf ) {
 	fprintf(stderr, "SUPERLU_MALLOC failed for buf in doubleMalloc()");
 	exit (1);
@@ -729,13 +734,138 @@ double *doubleCalloc(int n)
 {
     double *buf;
     register int i;
-    buf = (double *) SUPERLU_MALLOC(n * sizeof(double));
+    double zero = 0.0;
+    buf = (double *) SUPERLU_MALLOC( (size_t) n * sizeof(double) );
     if ( !buf ) {
 	fprintf(stderr, "SUPERLU_MALLOC failed for buf in doubleCalloc()");
 	exit (1);
     }
-    for (i = 0; i < n; ++i) buf[i] = 0.;
+    for (i = 0; i < n; ++i) buf[i] = zero;
     return (buf);
+}
+
+/*
+ * Set up memory image in lusup[*], using the supernode boundaries in 
+ * the Householder matrix.
+ * 
+ * In both static and dynamic scheme, the relaxed supernodes (leaves) 
+ * are stored in the beginning of lusup[*]. In the static scheme, the
+ * memory is also set aside for the internal supernodes using upper
+ * bound information from H. In the dynamic scheme, however, the memory
+ * for the internal supernodes is not allocated by this routine.
+ *
+ * Return value
+ *   o Static scheme: number of nonzeros of all the supernodes in H.
+ *   o Dynamic scheme: number of nonzeros of the relaxed supernodes. 
+ */
+int
+dPresetMap(
+	  const int n,
+	  SuperMatrix *A, /* original matrix permuted by columns */
+	  pxgstrf_relax_t *pxgstrf_relax, /* relaxed supernodes */
+	  superlumt_options_t *superlumt_options, /* input */
+	  GlobalLU_t *Glu /* modified */
+	  )
+{
+    register int i, j, k, w, rs, rs_lastcol, krow, kmark, maxsup, nextpos;
+    register int rs_nrow; /* number of nonzero rows in a relaxed supernode */
+    int          *marker, *asub, *xa_begin, *xa_end;
+    NCPformat    *Astore;
+    int *map_in_sup; /* memory mapping function; values irrelevant on entry. */
+    int *colcnt;     /* column count of Lc or H */
+    int *super_bnd;  /* supernodes partition in H */
+    char *snode_env, *getenv();
+
+    snode_env = getenv("SuperLU_DYNAMIC_SNODE_STORE");
+    if ( snode_env != NULL ) {
+	Glu->dynamic_snode_bound = YES;
+#if ( PRNTlevel>=1 )
+	printf(".. Use dynamic alg. to allocate storage for L supernodes.\n");
+#endif
+    } else  Glu->dynamic_snode_bound = NO;
+
+    Astore   = A->Store;
+    asub     = Astore->rowind;
+    xa_begin = Astore->colbeg;
+    xa_end   = Astore->colend;
+    rs       = 1;
+    marker   = intMalloc(n);
+    ifill(marker, n, EMPTY);
+    map_in_sup = Glu->map_in_sup = intCalloc(n+1);
+    colcnt = superlumt_options->colcnt_h;
+    super_bnd = superlumt_options->part_super_h;
+    nextpos = 0;
+
+    /* Split large supernode into smaller pieces */
+    maxsup = sp_ienv(3);
+    for (j = 0; j < n; ) {
+	w = super_bnd[j];
+	k = j + w;
+	if ( w > maxsup ) {
+	    w = w % maxsup;
+	    if ( w == 0 ) w = maxsup;
+	    while ( j < k ) {
+		super_bnd[j] = w;
+		j += w;
+		w = maxsup;
+	    }
+	}
+	j = k;
+    }
+    
+    for (j = 0; j < n; j += w) {
+        if ( Glu->dynamic_snode_bound == NO ) map_in_sup[j] = nextpos;
+
+	if ( pxgstrf_relax[rs].fcol == j ) {
+	    /* Column j starts a relaxed supernode. */
+	    map_in_sup[j] = nextpos;
+	    rs_nrow = 0;
+	    w = pxgstrf_relax[rs++].size;
+	    rs_lastcol = j + w;
+	    for (i = j; i < rs_lastcol; ++i) {
+		/* for each nonzero in A[*,i] */
+		for (k = xa_begin[i]; k < xa_end[i]; k++) {	
+		    krow = asub[k];
+		    kmark = marker[krow];
+		    if ( kmark != j ) { /* first time visit krow */
+			marker[krow] = j;
+			++rs_nrow;
+		    }
+		}
+	    }
+	    nextpos += w * rs_nrow;
+	    
+	    /* Find the next H-supernode, with leading column i, which is
+	       outside the relaxed supernode, rs. */
+	    for (i = j; i < rs_lastcol; k = i, i += super_bnd[i]);
+	    if ( i > rs_lastcol ) {
+		/* The w columns [rs_lastcol, i) may join in the
+		   preceeding relaxed supernode; make sure we leave
+		   enough room for the combined supernode. */
+		w = i - rs_lastcol;
+		nextpos += w * SUPERLU_MAX( rs_nrow, colcnt[k] );
+	    }
+	    w = i - j;
+	} else { /* Column j starts a supernode in H */
+	    w = super_bnd[j];
+	    if ( Glu->dynamic_snode_bound == NO ) nextpos += w * colcnt[j];
+	}
+
+	/* Set up the offset (negative) to the leading column j of a
+	   supernode in H */ 
+	for (i = 1; i < w; ++i) map_in_sup[j + i] = -i;
+	
+    } /* for j ... */
+
+    if ( Glu->dynamic_snode_bound == YES ) Glu->nextlu = nextpos;
+    else map_in_sup[n] = nextpos;
+
+#if ( PRNTlevel>=1 )
+    printf("** PresetMap() allocates %d reals to lusup[*]....\n", nextpos);
+#endif
+
+    SUPERLU_FREE (marker);
+    return nextpos;
 }
 
 

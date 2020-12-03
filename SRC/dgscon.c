@@ -1,14 +1,14 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * History:     Modified from lapack routines DGECON.
  */
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
 
 void
 dgscon(char *norm, SuperMatrix *L, SuperMatrix *U,
@@ -18,7 +18,7 @@ dgscon(char *norm, SuperMatrix *L, SuperMatrix *U,
     Purpose   
     =======   
 
-    dgscon() estimates the reciprocal of the condition number of a general 
+    DGSCON estimates the reciprocal of the condition number of a general 
     real matrix A, in either the 1-norm or the infinity-norm, using   
     the LU factorization computed by DGETRF.   
 
@@ -40,12 +40,12 @@ dgscon(char *norm, SuperMatrix *L, SuperMatrix *U,
     L       (input) SuperMatrix*
             The factor L from the factorization Pr*A*Pc=L*U as computed by
             dgstrf(). Use compressed row subscripts storage for supernodes,
-            i.e., L has types: Stype = SCP, Dtype = _D, Mtype = TRLU.
+            i.e., L has types: Stype = SLU_SCP, Dtype = SLU_D, Mtype = SLU_TRLU.
  
     U       (input) SuperMatrix*
             The factor U from the factorization Pr*A*Pc=L*U as computed by
             dgstrf(). Use column-wise storage scheme, i.e., U has types:
-            Stype = NCP, Dtype = _D, Mtype = TRU.
+            Stype = SLU_NCP, Dtype = SLU_D, Mtype = SLU_TRU.
 	    
     ANORM   (input) double
             If NORM = '1' or 'O', the 1-norm of the original matrix A.   
@@ -100,7 +100,7 @@ dgscon(char *norm, SuperMatrix *L, SuperMatrix *U,
 
 
     if ( !work || !iwork )
-	ABORT("Malloc fails for work arrays in dgscon.");
+	SUPERLU_ABORT("Malloc fails for work arrays in dgscon.");
     
     /* Estimate the norm of inv(A). */
     ainvnm = 0.;

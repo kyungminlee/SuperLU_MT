@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "pdsp_defs.h"
@@ -44,10 +45,10 @@ pdgstrf_panel_bmod(
 		   )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -81,7 +82,7 @@ pdgstrf_panel_bmod(
     int          *col_marker; /* each column of the spa_marker[*,w] */
     int          *col_lsub;   /* each column of the panel_lsub[*,w] */
     static   int first = 1, rowblk, colblk;
-    
+
 #ifdef PROFILE
     double   t1, t2; /* temporary time */
 #endif
@@ -136,7 +137,7 @@ if (jcol == BADPAN)
 	nrow = nsupr - nsupc;
 
 #ifdef PREDICT_OPT
-	pmod = procstat[pnum].fcops;
+	pmod = Gstat->procstat[pnum].fcops;
 #endif
 	    
 	if ( nsupc >= colblk && nrow >= rowblk ) {
@@ -164,7 +165,7 @@ if (jcol == BADPAN)
 	}
 	
 #ifdef PREDICT_OPT
-	pmod = procstat[pnum].fcops - pmod;
+	pmod = Gstat->procstat[pnum].fcops - pmod;
 	kid = (Glu->pan_status[krep].size > 0) ?
 	    krep : (krep + Glu->pan_status[krep].size);
 	desc_eft[ndesc].eft = cp_panel[kid].est + cp_panel[kid].pdiv;
@@ -228,9 +229,9 @@ if (jcol == BADPAN)
 
 #ifdef PROFILE
 	    TOC(t2, t1);
-	    panstat[jcol].pipewaits++;
-	    panstat[jcol].spintime += t2;
-	    procstat[pnum].spintime += t2;
+	    Gstat->panstat[jcol].pipewaits++;
+	    Gstat->panstat[jcol].spintime += t2;
+	    Gstat->procstat[pnum].spintime += t2;
 #ifdef DOPRINT
 	    PRINT_SPIN_TIME(1);
 #endif
@@ -263,9 +264,9 @@ if (jcol == BADPAN)
 
 #ifdef PROFILE
 		TOC(t2, t1);
-		panstat[jcol].pipewaits++;
-		panstat[jcol].spintime += t2;
-		procstat[pnum].spintime += t2;
+		Gstat->panstat[jcol].pipewaits++;
+		Gstat->panstat[jcol].spintime += t2;
+		Gstat->procstat[pnum].spintime += t2;
 #ifdef DOPRINT
 		PRINT_SPIN_TIME(2);
 #endif
@@ -318,7 +319,7 @@ if ( jcol==BADCOL )
 
 #else
 	    for (kcol = fsupc; kcol <= krep; ++kcol) {
-	        if ( dense_col[inv_perm_r[kcol]] != 0.0 ) {
+                if ( dense_col[inv_perm_r[kcol]] != 0.0 ) {
 		    repfnz_col[krep] = kcol;
 		    break; /* Found the leading nonzero in the U-segment */
 		}
@@ -352,7 +353,7 @@ printf("(%d) pdgstrf_panel_bmod[fills] xlsub %d, xlsub_end %d, #lsub[%d] %d\n",
 	} /* for jj ... */
 
 #ifdef PREDICT_OPT
-	pmod = procstat[pnum].fcops;
+	pmod = Gstat->procstat[pnum].fcops;
 #endif
 	
 	/* Perform sup-panel updates - use combined 1D + 2D updates. */
@@ -384,7 +385,7 @@ printf("(%d) pdgstrf_panel_bmod[fills] xlsub %d, xlsub_end %d, #lsub[%d] %d\n",
 	}
 
 #ifdef PREDICT_OPT
-	pmod = procstat[pnum].fcops - pmod;
+	pmod = Gstat->procstat[pnum].fcops - pmod;
 	kid = (pxgstrf_shared->pan_status[krep].size > 0) ?
 	       krep : (krep + pxgstrf_shared->pan_status[krep].size);
 	desc_eft[ndesc].eft = cp_panel[kid].est + cp_panel[kid].pdiv;
@@ -412,7 +413,7 @@ if ( jcol==BADCOL )
     qsort(desc_eft, ndesc, sizeof(desc_eft_t), (int(*)())numcomp);
     pmod_eft = 0;
     for (j = 0; j < ndesc; ++j) {
-	pmod_eft = MAX( pmod_eft, desc_eft[j].eft ) + desc_eft[j].pmod;
+	pmod_eft = SUPERLU_MAX( pmod_eft, desc_eft[j].eft ) + desc_eft[j].pmod;
     }
 
     if ( ndesc == 0 ) {
@@ -421,8 +422,8 @@ if ( jcol==BADCOL )
 	for (j = cp_firstkid[jcol]; j != EMPTY; j = cp_nextkid[j]) {
 	    kid = (pxgstrf_shared->pan_status[j].size > 0) ? 
 			j : (j + pxgstrf_shared->pan_status[j].size);
-	    pmod_eft = MAX( pmod_eft,
-			   cp_panel[kid].est + cp_panel[kid].pdiv );
+	    pmod_eft = SUPERLU_MAX( pmod_eft,
+			   	cp_panel[kid].est + cp_panel[kid].pdiv );
 	}
     }
     
@@ -432,7 +433,7 @@ if ( jcol==BADCOL )
 
 }
 
-int
+static int
 check_panel_dfs_list(int pnum, char *msg, int jcol, int nseg, int *segrep)
 {
     register int k;

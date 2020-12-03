@@ -7,8 +7,10 @@
  */
 #include <unistd.h>
 #include <math.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 void superlu_abort_and_exit(char* msg)
 {
@@ -16,7 +18,7 @@ void superlu_abort_and_exit(char* msg)
     exit (-1);
 }
 
-void *superlu_malloc(int size)
+void *superlu_malloc(size_t size)
 {
     void *buf;
     buf = (void *) malloc(size);
@@ -219,6 +221,7 @@ fixupL(const int n, const int *perm_r, GlobalLU_t *Glu)
 	xlsub_end[fsupc] = nextl;
     }
     xlsub[n] = nextl;
+
 #if ( PRNTlevel==1 )
     printf(".. # edges in supernodal graph of L = %d\n", nextl);
     fflush(stdout);
@@ -318,34 +321,36 @@ StatAlloc(const int n, const int nprocs, const int panel_size,
 {
     register int w;
 
-    w = MAX( panel_size, relax ) + 1;
+    w = SUPERLU_MAX( panel_size, relax ) + 1;
     Gstat->panel_histo = intCalloc(w);
     Gstat->utime = (double *) doubleMalloc(NPHASES);
     Gstat->ops   = (flops_t *) SUPERLU_MALLOC(NPHASES * sizeof(flops_t));
     
-    if ( !(Gstat->procstat 
-		= (procstat_t *) SUPERLU_MALLOC(nprocs*sizeof(procstat_t))) )
-	ABORT( "SUPERLU_MALLOC failed for procstat[]" );
+    if ( !(Gstat->procstat =
+	   (procstat_t *) SUPERLU_MALLOC(nprocs*sizeof(procstat_t))) )
+	SUPERLU_ABORT( "SUPERLU_MALLOC failed for procstat[]" );
 
 #if (PRNTlevel==1)
     printf(".. StatAlloc(): n %d, nprocs %d, panel_size %d, relax %d\n",
 		n, nprocs, panel_size, relax);
 #endif
 #ifdef PROFILE    
-    if ( !(panstat = (panstat_t *) SUPERLU_MALLOC(n * sizeof(panstat_t))) )
-	ABORT( "SUPERLU_MALLOC failed for panstat[]" );
-    panhows = intCalloc(3);
+    if ( !(Gstat->panstat =
+	   (panstat_t*) SUPERLU_MALLOC(n * sizeof(panstat_t))) )
+	SUPERLU_ABORT( "SUPERLU_MALLOC failed for panstat[]" );
+    Gstat->panhows = intCalloc(3);
     Gstat->height = intCalloc(n+1);
-    if ( !(flops_by_height = (float *) SUPERLU_MALLOC(n * sizeof(float))) )
-	ABORT("SUPERLU_MALLOC failed for flops_by_height[]");
+    if ( !(Gstat->flops_by_height =
+	   (float *) SUPERLU_MALLOC(n * sizeof(float))) )
+	SUPERLU_ABORT("SUPERLU_MALLOC failed for flops_by_height[]");
     
 #endif
     
 #ifdef PREDICT_OPT
     if ( !(cp_panel = (cp_panel_t *) SUPERLU_MALLOC(n * sizeof(cp_panel_t))) )
-	ABORT( "SUPERLU_MALLOC failed for cp_panel[]" );
+	SUPERLU_ABORT( "SUPERLU_MALLOC failed for cp_panel[]" );
     if ( !(desc_eft = (desc_eft_t *) SUPERLU_MALLOC(n * sizeof(desc_eft_t))) )
-	ABORT( "SUPERLU_MALLOC failed for desc_eft[]" );
+	SUPERLU_ABORT( "SUPERLU_MALLOC failed for desc_eft[]" );
     cp_firstkid = intMalloc(n+1);
     cp_nextkid = intMalloc(n+1);
 #endif
@@ -378,15 +383,15 @@ StatInit(const int n, const int nprocs, Gstat_t *Gstat)
 
 #ifdef PROFILE    
     for (i = 0; i < n; ++i) {
-	panstat[i].fctime = 0.0;
-	panstat[i].flopcnt = 0.0;
-	panstat[i].pipewaits = 0;
-	panstat[i].spintime = 0.0;
-	flops_by_height[i] = 0.0;
+	Gstat->panstat[i].fctime = 0.0;
+	Gstat->panstat[i].flopcnt = 0.0;
+	Gstat->panstat[i].pipewaits = 0;
+	Gstat->panstat[i].spintime = 0.0;
+	Gstat->flops_by_height[i] = 0.0;
     }
-    for (i = 0; i < 3; ++i) panhows[i] = 0;
-    dom_flopcnt = 0.;
-    flops_last_P_panels = 0;
+    for (i = 0; i < 3; ++i) Gstat->panhows[i] = 0;
+    Gstat->dom_flopcnt = 0.;
+    Gstat->flops_last_P_panels = 0;
 #endif
     
 #ifdef PREDICT_OPT
@@ -433,7 +438,7 @@ StatFree(Gstat_t *Gstat)
     SUPERLU_FREE (Gstat->panstat);
     SUPERLU_FREE (Gstat->panhows);
     SUPERLU_FREE (Gstat->height);
-    SUPERLU_FREE (flops_by_height);
+    SUPERLU_FREE (Gstat->flops_by_height);
 #endif
 
 #ifdef PREDICT_OPT
@@ -563,7 +568,7 @@ void check_repfnz(int n, int w, int jcol, int *repfnz)
 	    if ( repfnz[(jj-jcol)*n + k] != EMPTY ) {
 		fprintf(stderr, "col %d, repfnz_col[%d] = %d\n", jj,
 			k, repfnz[(jj-jcol)*n + k]);
-		ABORT("repfnz[] not empty.");
+		SUPERLU_ABORT("repfnz[] not empty.");
 	    }
 }
 
@@ -792,8 +797,8 @@ int ParallelProfile(const int n, const int supers, const int panels,
     printf("%25s%8d,\tper-panel %.1f\n", "total #delays in pipeline",
 	    waits, (float)waits/panels);
     temp = waittime / procs;
-    printf("%25s%8.2f\t[%.2f]\n", "mean spin time per-proc", 
-	   temp, temp/utime[FACT]);
+    printf("%25s%8.2f\t[%.1f%]\n", "mean spin time per-proc", 
+	   temp, temp/utime[FACT]*100);
     
     /* Delays due to scheduling. */
     waits = waittime = 0;
@@ -803,8 +808,8 @@ int ParallelProfile(const int n, const int supers, const int panels,
     }
     printf("%25s%8d\n", "total #delays in schedule", waits);
     temp = waittime / procs;
-    printf("%25s%8.2f\t[%.2f]\n", "mean sched time per-proc", 
-	   temp, temp/utime[FACT]);
+    printf("%25s%8.2f\t[%.1f%]\n", "mean sched. time per-proc", 
+	   temp, temp/utime[FACT]*100);
 
     /* estimated overhead in spin-locks */
 #if ( MACH==CRAY_PVP )    /* measured for mutex lock/unlock on 4 cpus */
@@ -825,8 +830,8 @@ int ParallelProfile(const int n, const int supers, const int panels,
     temp = cs_numbers * TMUTEX;
     printf("mutex-lock overhead (est.) %8.2f, #locks %d, equiv. flops %e\n", 
 	   temp, cs_numbers, (float) itemp);
-    printf("time in critical section   %8.2f\t[%.2f]\n",
-	   cs_time/procs, cs_time/procs/utime[FACT]);
+    printf("time in critical section   %8.2f\t[%.1f%]\n",
+	   cs_time/procs, cs_time/procs/utime[FACT]*100);
 
     printf("\n---- Parallel Profile Per Panel ----\n");
     printf("%8s%8s%16s%8s%8s%12s%8s\n", "panel", "height",

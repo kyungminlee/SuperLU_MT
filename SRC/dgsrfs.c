@@ -1,50 +1,52 @@
+
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 void
 dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
        int *perm_r, int *perm_c, equed_t equed, double *R, double *C,
-       SuperMatrix *B, SuperMatrix *X, double *ferr, double *berr, 
+       SuperMatrix *B, SuperMatrix *X, double *ferr, double *berr,
        Gstat_t *Gstat, int *info)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
- * Purpose   
+ *
+ * Purpose
  * =======   
  *
- * dgsrfs() improves the computed solution to a system of linear   
- * equations and provides error bounds and backward error estimates for 
- * the solution.   
+ * dgsrfs improves the computed solution to a system of linear
+ * equations and provides error bounds and backward error estimates for
+ * the solution.
  *
  * See supermatrix.h for the definition of 'SuperMatrix' structure.
  *
- * Arguments   
- * =========   
- * 
+ * Arguments
+ * =========
+ *
  * trans   (input) trans_t
- *         Specifies the form of the system of equations:   
- *         = NOTRANS:  A * X = B     (No transpose)   
- *         = TRANS:    A**T * X = B  (Transpose)   
+ *         Specifies the form of the system of equations:
+ *         = NOTRANS:  A * X = B     (No transpose)
+ *         = TRANS:    A**T * X = B  (Transpose)
  *         = CONJ:     A**H * X = B  (Conjugate transpose = Transpose)
- *   
+ *
  * A       (input) SuperMatrix*
  *         The original matrix A in the system, or the scaled A if
  *         equilibration was done. The type of A can be:
  *         Stype = NC, Dtype = _D, Mtype = GE.
- *    
+ *
  * L       (input) SuperMatrix*
  *         The factor L from the factorization Pr*A*Pc=L*U. Use
- *         compressed row subscripts storage for supernodes, 
+ *         compressed row subscripts storage for supernodes,
  *         i.e., L has types: Stype = SCP, Dtype = _D, Mtype = TRLU.
- * 
+ *
  * U       (input) SuperMatrix*
  *         The factor U from the factorization Pr*A*Pc=L*U as computed by
- *         dgstrf(). Use column-wise storage scheme, 
+ *         dgstrf(). Use column-wise storage scheme,
  *         i.e., U has types: Stype = NCP, Dtype = _D, Mtype = TRU.
  *
  * perm_r  (input) int*, dimension (A->nrow)
@@ -52,7 +54,7 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
  *         perm_r[i] = j means row i of A is in position j in Pr*A.
  *
  * perm_c  (input) int*, dimension (A->ncol)
- *         Column permutation vector, which defines the 
+ *         Column permutation vector, which defines the
  *         permutation matrix Pc; perm_c[i] = j means column i of A is 
  *         in position j in A*Pc.
  *
@@ -62,14 +64,14 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
  *         = ROW:  Row equilibration, i.e., A was premultiplied by diag(R).
  *         = COL:  Column equilibration, i.e., A was postmultiplied by
  *                 diag(C).
- *         = BOTH: Both row and column equilibration, i.e., A was replaced 
+ *         = BOTH: Both row and column equilibration, i.e., A was replaced
  *                 by diag(R)*A*diag(C).
  *
  * R       (input) double*, dimension (A->nrow)
  *         The row scale factors for A.
  *         If equed = ROW or BOTH, A is premultiplied by diag(R).
  *         If equed = NOEQUIL or COL, R is not accessed.
- * 
+ *
  * C       (input) double*, dimension (A->ncol)
  *         The column scale factors for A.
  *         If equed = COL or BOTH, A is postmultiplied by diag(C).
@@ -84,31 +86,31 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
  *         On entry, the solution matrix X, as computed by dgstrs().
  *         On exit, the improved solution matrix X.
  *
- * FERR    (output) double*, dimension (B->ncol)   
- *         The estimated forward error bound for each solution vector   
- *         X(j) (the j-th column of the solution matrix X).   
- *         If XTRUE is the true solution corresponding to X(j), FERR(j) 
- *         is an estimated upper bound for the magnitude of the largest 
- *         element in (X(j) - XTRUE) divided by the magnitude of the   
- *         largest element in X(j).  The estimate is as reliable as   
- *         the estimate for RCOND, and is almost always a slight   
+ * FERR    (output) double*, dimension (B->ncol)
+ *         The estimated forward error bound for each solution vector
+ *         X(j) (the j-th column of the solution matrix X).
+ *         If XTRUE is the true solution corresponding to X(j), FERR(j)
+ *         is an estimated upper bound for the magnitude of the largest
+ *         element in (X(j) - XTRUE) divided by the magnitude of the
+ *         largest element in X(j).  The estimate is as reliable as
+ *         the estimate for RCOND, and is almost always a slight
  *         overestimate of the true error.
  *
- * BERR    (output) double*, dimension (B->ncol)   
- *         The componentwise relative backward error of each solution   
- *         vector X(j) (i.e., the smallest relative change in   
+ * BERR    (output) double*, dimension (B->ncol)
+ *         The componentwise relative backward error of each solution
+ *         vector X(j) (i.e., the smallest relative change in
  *         any element of A or B that makes X(j) an exact solution).
  *
- * info    (output) int*   
- *         = 0:  successful exit   
- *         < 0:  if INFO = -i, the i-th argument had an illegal value   
+ * info    (output) int*
+ *         = 0:  successful exit
+ *         < 0:  if INFO = -i, the i-th argument had an illegal value
  *
- * Internal Parameters   
- * ===================   
+ * Internal Parameters
+ * ===================
  *
- * ITMAX is the maximum number of steps of iterative refinement.   
+ * ITMAX is the maximum number of steps of iterative refinement.
  *
- */  
+ */
 
 #define ITMAX 5
     
@@ -128,16 +130,20 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     int      i, j, k, irow, nz, count, notran, rowequ, colequ;
     int      ldb, ldx, nrhs;
     double   s, xk, lstres, eps, safmin;
-    trans_t  transt;
     char     transc[1];
+    trans_t  transt;
     double   *work;
     double   *rwork;
     int      *iwork;
-
     extern double dlamch_(char *);
-    extern int dcopy_(int *, double *, int *, double *, int *),
-           daxpy_(int *, double *, double *, int *, double *, int *);
     extern int dlacon_(int *, double *, double *, int *, double *, int *);
+#ifdef _CRAY
+    extern int SCOPY(int *, double *, int *, double *, int *);
+    extern int SSAXPY(int *, double *, double *, int *, double *, int *);
+#else
+    extern int dcopy_(int *, double *, int *, double *, int *);
+    extern int daxpy_(int *, double *, double *, int *, double *, int *);
+#endif
 
     Astore = A->Store;
     Aval   = Astore->nzval;
@@ -152,7 +158,7 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     /* Test the input parameters */
     *info = 0;
     notran = (trans == NOTRANS);
-    if ( !notran && (trans != TRANS) && (trans != CONJ)) *info = -1;
+    if ( !notran && trans != TRANS && trans != CONJ ) *info = -1;
     else if ( A->nrow != A->ncol || A->nrow < 0 ||
 	      A->Stype != SLU_NC || A->Dtype != SLU_D || A->Mtype != SLU_GE )
 	*info = -2;
@@ -162,10 +168,10 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     else if ( U->nrow != U->ncol || U->nrow < 0 ||
  	      U->Stype != SLU_NCP || U->Dtype != SLU_D || U->Mtype != SLU_TRU )
 	*info = -4;
-    else if ( ldb < MAX(0, A->nrow) ||
+    else if ( ldb < SUPERLU_MAX(0, A->nrow) ||
  	      B->Stype != SLU_DN || B->Dtype != SLU_D || B->Mtype != SLU_GE )
         *info = -10;
-    else if ( ldx < MAX(0, A->nrow) ||
+    else if ( ldx < SUPERLU_MAX(0, A->nrow) ||
  	      X->Stype != SLU_DN || X->Dtype != SLU_D || X->Mtype != SLU_GE )
 	*info = -11;
     if (*info != 0) {
@@ -188,14 +194,14 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     
     /* Allocate working space */
     work = doubleMalloc(2*A->nrow);
-    rwork = (double *) SUPERLU_MALLOC( A->nrow * sizeof(double) );
+    rwork = (double *) SUPERLU_MALLOC( (size_t) A->nrow * sizeof(double) );
     iwork = intMalloc(2*A->nrow);
     if ( !work || !rwork || !iwork ) 
-        ABORT("Malloc fails for work/rwork/iwork.");
+        SUPERLU_ABORT("Malloc fails for work/rwork/iwork.");
     
     if ( notran ) {
 	*(unsigned char *)transc = 'N';
-	transt = TRANS;
+        transt = TRANS;
     } else {
 	*(unsigned char *)transc = 'T';
 	transt = NOTRANS;
@@ -205,6 +211,8 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     nz     = A->ncol + 1;
     eps    = dlamch_("Epsilon");
     safmin = dlamch_("Safe minimum");
+    /* Set SAFE1 essentially to be the underflow threshold times the
+       number of additions in each row. */
     safe1  = nz * safmin;
     safe2  = safe1 / eps;
 
@@ -226,7 +234,7 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     Bjcol.nrow  = B->nrow;
     Bjcol.ncol  = 1;
     Bjcol.Store = (void *) SUPERLU_MALLOC( sizeof(DNformat) );
-    if ( !Bjcol.Store ) ABORT("SUPERLU_MALLOC fails for Bjcol.Store");
+    if ( !Bjcol.Store ) SUPERLU_ABORT("SUPERLU_MALLOC fails for Bjcol.Store");
     Bjcol_store = Bjcol.Store;
     Bjcol_store->lda = ldb;
     Bjcol_store->nzval = work; /* address aliasing */
@@ -243,7 +251,11 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
 	    /* Compute residual R = B - op(A) * X,   
 	       where op(A) = A, A**T, or A**H, depending on TRANS. */
 	    
+#ifdef _CRAY
+	    SCOPY(&A->nrow, Bptr, &ione, work, &ione);
+#else
 	    dcopy_(&A->nrow, Bptr, &ione, work, &ione);
+#endif
 	    sp_dgemv(transc, ndone, A, Xptr, ione, done, work, ione);
 
 	    /* Compute componentwise relative backward error from formula 
@@ -251,7 +263,7 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
 	       where abs(Z) is the componentwise absolute value of the matrix
 	       or vector Z.  If the i-th component of the denominator is less
 	       than SAFE2, then SAFE1 is added to the i-th component of the   
-	       numerator and denominator before dividing. */
+	       numerator before dividing. */
 
 	    for (i = 0; i < A->nrow; ++i) rwork[i] = fabs( Bptr[i] );
 	    
@@ -274,11 +286,13 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
 	    }
 	    s = 0.;
 	    for (i = 0; i < A->nrow; ++i) {
-		if (rwork[i] > safe2)
-		    s = MAX( s, fabs(work[i]) / rwork[i] );
-		else
-		    s = MAX( s, (fabs(work[i]) + safe1) / 
-				(rwork[i] + safe1) );
+		if (rwork[i] > safe2) {
+		    s = SUPERLU_MAX( s, fabs(work[i]) / rwork[i] );
+		} else if ( rwork[i] != 0.0 ) {
+		    s = SUPERLU_MAX( s, (fabs(work[i]) + safe1) / rwork[i] );
+                }
+                /* If rwork[i] is exactly 0.0, then we know the true 
+                   residual also must be exactly 0.0. */
 	    }
 	    berr[j] = s;
 
@@ -292,8 +306,13 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
 		/* Update solution and try again. */
 		dgstrs (trans, L, U, perm_r, perm_c, &Bjcol, Gstat, info);
 		
+#ifdef _CRAY
+		SAXPY(&A->nrow, &done, work, &ione,
+		       &Xmat[j*ldx], &ione);
+#else
 		daxpy_(&A->nrow, &done, work, &ione,
 		       &Xmat[j*ldx], &ione);
+#endif
 		lstres = berr[j];
 		++count;
 	    } else {
@@ -384,13 +403,13 @@ dgsrfs(trans_t trans, SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
 	lstres = 0.;
  	if ( notran && colequ ) {
 	    for (i = 0; i < A->nrow; ++i)
-	    	lstres = MAX( lstres, C[i] * fabs( Xptr[i]) );
+	    	lstres = SUPERLU_MAX( lstres, C[i] * fabs( Xptr[i]) );
   	} else if ( !notran && rowequ ) {
 	    for (i = 0; i < A->nrow; ++i)
-	    	lstres = MAX( lstres, R[i] * fabs( Xptr[i]) );
+	    	lstres = SUPERLU_MAX( lstres, R[i] * fabs( Xptr[i]) );
 	} else {
 	    for (i = 0; i < A->nrow; ++i)
-	    	lstres = MAX( lstres, fabs( Xptr[i]) );
+	    	lstres = SUPERLU_MAX( lstres, fabs( Xptr[i]) );
 	}
 	if ( lstres != 0. )
 	    ferr[j] /= lstres;

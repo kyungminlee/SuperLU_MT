@@ -1,3 +1,4 @@
+#include <string.h>
 #include "f2c.h"
 
 logical lsamen_(integer *n, char *ca, char *cb)

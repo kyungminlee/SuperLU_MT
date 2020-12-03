@@ -1,5 +1,6 @@
+
 #include "pdsp_defs.h"
-#include "util.h"
+
 
 int
 pdgstrf_column_dfs(
@@ -23,10 +24,10 @@ pdgstrf_column_dfs(
 		   )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -58,6 +59,7 @@ pdgstrf_column_dfs(
  *
  */
     GlobalLU_t *Glu = pxgstrf_shared->Glu; /* modified */
+    Gstat_t *Gstat = pxgstrf_shared->Gstat; /* modified */
     register int jcolm1, jcolm1size, nextl, ifrom;
     register int k, krep, krow, kperm, samesuper, nsuper;
     register int no_lsub;
@@ -149,14 +151,14 @@ pdgstrf_column_dfs(
 		    else xdfs = xlsub[krep];
 		    maxdfs = xprune[krep];
 #ifdef PROFILE
-		    procstat[pnum].pruned++;
+		    Gstat->procstat[pnum].pruned++;
 #endif		    
 		} else {
 		    fsupc = SUPER_FSUPC( supno[krep] );
 		    xdfs = xlsub[fsupc] + krep-fsupc+1;
 		    maxdfs = xlsub_end[fsupc];
 #ifdef PROFILE
-		    procstat[pnum].unpruned++;
+		    Gstat->procstat[pnum].unpruned++;
 #endif		    
 		}
 		
@@ -202,14 +204,14 @@ pdgstrf_column_dfs(
 					else xdfs = xlsub[krep];
 					maxdfs = xprune[krep];
 #ifdef PROFILE
-					procstat[pnum].pruned++;
+					Gstat->procstat[pnum].pruned++;
 #endif		    
 				    } else {
 					fsupc = SUPER_FSUPC( supno[krep] );
 					xdfs = xlsub[fsupc] + krep-fsupc+1;
 					maxdfs = xlsub_end[fsupc];
 #ifdef PROFILE
-					procstat[pnum].unpruned++;
+					Gstat->procstat[pnum].unpruned++;
 #endif		    
 				    }
 				}
@@ -280,8 +282,7 @@ pdgstrf_column_dfs(
      * a previous supernode. (first for num values, last for pruning)
      */
     if ( samesuper == NO ) { /* starts a new supernode */
-	nsuper = NewNsuper(pnum, &pxgstrf_shared->lu_locks[NSUPER_LOCK], 
-			   &Glu->nsuper);
+	nsuper = NewNsuper(pnum, pxgstrf_shared, &Glu->nsuper);
 	xsup[nsuper] = jcol;
 	
 	/* Copy column jcol; also reserve space to store pruned graph */

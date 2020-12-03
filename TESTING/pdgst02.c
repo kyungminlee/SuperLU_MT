@@ -1,13 +1,14 @@
+
 #include "pdsp_defs.h"
 
 int pdgst02(trans_t trans, int m, int n, int nrhs, SuperMatrix *A,
 	    double *x, int ldx, double *b, int ldb, double *resid)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  *  Purpose   
  *  =======   
@@ -122,14 +123,14 @@ int pdgst02(trans_t trans, int m, int n, int nrhs, SuperMatrix *A,
 
     *resid = 0.;
     for (j = 0; j < nrhs; ++j) {
-	bnorm = dasum_(&n1, &b[j*ldb], &c__1);
-	xnorm = dasum_(&n2, &x[j*ldx], &c__1);
+        bnorm = dasum_(&n1, &b[j*ldb], &c__1);
+        xnorm = dasum_(&n2, &x[j*ldx], &c__1);
 	if (xnorm <= 0.) {
 	    *resid = 1. / eps;
 	} else {
 	    /* Computing MAX */
 	    d__1 = *resid, d__2 = bnorm / anorm / xnorm / eps;
-	    *resid = MAX(d__1, d__2);
+	    *resid = SUPERLU_MAX(d__1, d__2);
 	}
     }
 

@@ -8,21 +8,21 @@
 #include <stdio.h>
 #include <math.h>
 #include "pdsp_defs.h"
-#include "util.h"
 
 #define SPLIT_TOP
 
 int
 ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax, 
-	     pdgstrf_options_t *pdgstrf_options, 
+	     superlumt_options_t *superlumt_options, 
 	     pxgstrf_shared_t *pxgstrf_shared)
 {
-    int      *etree = pdgstrf_options->etree;
+    int      *etree = superlumt_options->etree;
     register int w, dad, ukids, i, j, k, rs, panel_size, relax;
     register int P, w_top, do_split = 0;
     panel_t panel_type;
     int      *panel_histo = pxgstrf_shared->Gstat->panel_histo;
     register int nthr, concurrency, info;
+    Gstat_t  *Gstat = pxgstrf_shared->Gstat;
 
 #if ( MACH==SUN )
     register int sync_type = USYNC_THREAD;
@@ -49,11 +49,13 @@ ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax,
     for (i = 0; i < NO_GLU_LOCKS; ++i)
 	pthread_mutex_init(&pxgstrf_shared->lu_locks[i], NULL);
 #else
+
     pxgstrf_shared->lu_locks = (mutex_t *) SUPERLU_MALLOC(NO_GLU_LOCKS * sizeof(mutex_t));
+
 #endif    
     
 #if ( PRNTlevel==1 )
-    printf(".. ParallelInit() ... nprocs %2d\n", pdgstrf_options->nprocs);
+    printf(".. ParallelInit() ... nprocs %2d\n", superlumt_options->nprocs);
 #endif
 
     pxgstrf_shared->spin_locks = intCalloc(n);
@@ -61,15 +63,15 @@ ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax,
         (pan_status_t *) SUPERLU_MALLOC((n+1)*sizeof(pan_status_t));
     pxgstrf_shared->fb_cols    = intMalloc(n+1);
 
-    panel_size = pdgstrf_options->panel_size;
-    relax = pdgstrf_options->relax;
-    w = MAX(panel_size, relax) + 1;
+    panel_size = superlumt_options->panel_size;
+    relax = superlumt_options->relax;
+    w = SUPERLU_MAX(panel_size, relax) + 1;
     for (i = 0; i < w; ++i) panel_histo[i] = 0;
     pxgstrf_shared->num_splits = 0;
     
     if ( (info = queue_init(&pxgstrf_shared->taskq, n)) ) {
 	fprintf(stderr, "ParallelInit(): %d\n", info);
-	ABORT("queue_init fails.");
+	SUPERLU_ABORT("queue_init fails.");
     }
 
     /* Count children of each node in the etree. */
@@ -83,11 +85,11 @@ ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax,
     /* Find the panel partitions and initialize each panel's status */
 
 #ifdef PROFILE
-    num_panels = 0;
+    Gstat->num_panels = 0;
 #endif
 
     pxgstrf_shared->tasks_remain = 0;
-    rs = 1;
+    rs = 1;   /* index for the next relaxed s-node */
     w_top = panel_size/2;
     if ( w_top == 0 ) w_top = 1;
     P = 12;
@@ -98,7 +100,21 @@ ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax,
 	    panel_type = RELAXED_SNODE;
 	    pxgstrf_shared->pan_status[i].state = CANGO;
 	} else {
-	    w = MIN(panel_size, pxgstrf_relax[rs].fcol - i);
+	    /* Adjust panel_size so that a panel won't overlap with
+	       the next relaxed snode.     */
+#if 0
+	    /* Only works when etree is postordered. */
+	    w = SUPERLU_MIN(panel_size, pxgstrf_relax[rs].fcol - i);
+#else
+	    w = panel_size;
+	    for (k = i + 1; k < SUPERLU_MIN(i + panel_size, n); ++k)
+		if ( k == pxgstrf_relax[rs].fcol ) {
+		    w = k - i;  /* panel stops at column k-1 */
+		    break;
+		}
+	    if ( k == n ) w = n - i;
+#endif
+
 #ifdef SPLIT_TOP
 	    if ( !do_split ) {
 	  	if ( (n-i) < panel_size * P ) do_split = 1;
@@ -137,12 +153,13 @@ ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax,
 	panel_histo[w]++;
 	
 #ifdef PROFILE
-	panstat[i].size = w;
-	++num_panels;
+	Gstat->panstat[i].size = w;
+	++Gstat->num_panels;
 #endif
 	
 	pxgstrf_shared->fb_cols[i] = i;
-	i += w;
+	i += w;    /* move to the next panel */
+
     } /* for i ... */
     
     /* Dummy root */
@@ -174,6 +191,7 @@ ParallelInit(int n, pxgstrf_relax_t *pxgstrf_relax,
 
     return 0;
 } /* ParallelInit */
+
 
 /*
  * Free the storage used by the parallel scheduling algorithm.
@@ -301,9 +319,11 @@ int EnqueueDomains(queue_t *q, struct Branch *list_head,
     return 0;
 }
 
-int NewNsuper(const int pnum, mutex_t *lock, int *data)
+int NewNsuper(const int pnum, pxgstrf_shared_t *pxgstrf_shared, int *data)
 {
     register int i;
+    mutex_t *lock = &pxgstrf_shared->lu_locks[NSUPER_LOCK];
+    Gstat_t *Gstat = pxgstrf_shared->Gstat;
 
 #ifdef PROFILE
     double t = SuperLU_timer_();

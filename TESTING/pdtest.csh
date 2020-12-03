@@ -8,7 +8,7 @@ echo 'Double-precision testing output' > $ofile
 
 set NVAL        = (10 19)
 set NRHS        = (2)
-set LWORK       = (0 1000000)
+set LWORK       = (0 10000000)
 set PANELSIZE   = (2)
 set RELAX       = (2)
 set NPROCS	= (1 2)
@@ -30,7 +30,7 @@ echo $m
 		    foreach p ($NPROCS)
 	    	      	echo '' >> $ofile
             	      	echo 'n='$n 'nrhs='$s 'lwork='$l 'nprocs='$p >> $ofile
-            	      	./plintstd -t "LA" -l $l -n $n -s $s -p $p >> $ofile
+            	      	./pdtest -t "LA" -l $l -n $n -s $s -p $p >> $ofile
 		    end
               	end
             end
@@ -49,7 +49,7 @@ echo $m
 	                    echo '' >> $ofile
                       	    echo 'w='$w 'relax='$r 'nrhs='$s 'lwork='$l \
 					'nprocs='$p >> $ofile
-            	      	    ./plintstd -t "SP" -w $w -r $r -s $s -l $l \
+            	      	    ./pdtest -t "SP" -w $w -r $r -s $s -l $l \
                              		< ../EXAMPLE/$m >> $ofile
 	   		end
         	  end

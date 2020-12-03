@@ -1,23 +1,25 @@
+
 #include "pdsp_defs.h"
 
 
 void
-pdgstrf_init(int nprocs, yes_no_t refact, int panel_size, int relax,
+pdgstrf_init(int nprocs, fact_t fact, trans_t trans, yes_no_t refact,
+             int panel_size, int relax,
 	     double diag_pivot_thresh, yes_no_t usepr, double drop_tol,
 	     int *perm_c, int *perm_r, void *work, int lwork,
 	     SuperMatrix *A, SuperMatrix *AC, 
-	     pdgstrf_options_t *pdgstrf_options, Gstat_t *Gstat)
+	     superlumt_options_t *superlumt_options, Gstat_t *Gstat)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
  *
- * pdgstrf_init() initializes the option structure pdgstrf_options, using 
+ * pdgstrf_init() initializes the option structure superlumt_options, using 
  * the user-input parameters. These options control how the factorization
  * will be performed by routine pdgstf().
  * 
@@ -30,6 +32,15 @@ pdgstrf_init(int nprocs, yes_no_t refact, int panel_size, int relax,
  *
  * nprocs (input) int
  *        Number of processes used to perform LU factorization by pdgstrf().
+ *
+ * fact   (input) fact_t
+ *        Specifies whether or not the factored form of the matrix is supplied.
+ *
+ * trans  (input) trans_t
+ *        Specifies the form of the system of equations:
+ *        = NOTRANS: A * X = B        (No transpose)
+ *        = TRANS:   A**T * X = B     (Transpose)
+ *        = CONJ:    A**H * X = B     (Transpose)
  *
  * refact (input) yes_no_t
  *        Specifies whether we want to use perm_r from a previous factor.
@@ -96,33 +107,36 @@ pdgstrf_init(int nprocs, yes_no_t refact, int panel_size, int relax,
  *        perm_c[] to matrix A. The type of AC can be:
  *        Stype = NCP; Dtype = _D; Mtype = GE.
  *
- * pdgstrf_options (output) pdgstrf_options_t*
+ * superlumt_options (output) superlumt_options_t*
  *        The structure defines the parameters to control how the sparse
  *        LU factorization is performed, and will be input to pdgstrf().
  *
  * Gstat  (output) Gstat_t*
- *        Record the time used in sp_colorder phase.
+ *        Record the time used in dsp_colorder phase.
  *
  */
     double t;
 
-    pdgstrf_options->nprocs = nprocs;
-    pdgstrf_options->refact = refact;
-    pdgstrf_options->panel_size = panel_size;
-    pdgstrf_options->relax = relax;
-    pdgstrf_options->diag_pivot_thresh = diag_pivot_thresh;
-    pdgstrf_options->usepr = usepr;
-    pdgstrf_options->drop_tol = drop_tol;
+    superlumt_options->nprocs = nprocs;
+    superlumt_options->refact = refact;
+    superlumt_options->panel_size = panel_size;
+    superlumt_options->relax = relax;
+    superlumt_options->diag_pivot_thresh = diag_pivot_thresh;
+    superlumt_options->usepr = usepr;
+    superlumt_options->drop_tol = drop_tol;
+    superlumt_options->SymmetricMode = NO;
+    superlumt_options->PrintStat = NO;
+
     /* 
      * The following should be retained for repeated factorizations.
      */
-    pdgstrf_options->perm_c = perm_c;
-    pdgstrf_options->perm_r = perm_r;
-    pdgstrf_options->work = work;
-    pdgstrf_options->lwork = lwork;
+    superlumt_options->perm_c = perm_c;
+    superlumt_options->perm_r = perm_r;
+    superlumt_options->work = work;
+    superlumt_options->lwork = lwork;
 
     t = SuperLU_timer_();
-    sp_colorder(A, perm_c, pdgstrf_options, AC);
+    sp_colorder(A, perm_c, superlumt_options, AC);
     Gstat->utime[ETREE] = SuperLU_timer_() - t;
 
 #if ( DEBUGlevel==1 )

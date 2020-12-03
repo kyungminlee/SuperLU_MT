@@ -1,7 +1,7 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "pdsp_defs.h"
-#include "util.h"
 
 void dlsolve(int, int, double *, double *);
 void dmatvec(int, int, int, double *, double *, double *);
@@ -31,10 +31,10 @@ pdgstrf_bmod2D_mv2(
 		   )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -43,7 +43,9 @@ pdgstrf_bmod2D_mv2(
  *    Results are returned in SPA dense[*,w].
  *
  */
-    double       zero = 0.0;
+
+    double      zero = 0.0;
+    double      one = 1.0;
 
 #if ( MACH==CRAY_PVP )
     _fcd ftcs1 = _cptofcd("L", strlen("L")),
@@ -52,7 +54,7 @@ pdgstrf_bmod2D_mv2(
 #endif
 #ifdef USE_VENDOR_BLAS
     int          incx = 1, incy = 1;
-    double       alpha = 1.0, beta = zero;
+    double       alpha = one, beta = zero;
 #endif
 
     double       ukj, ukj1, ukj2;
@@ -123,7 +125,7 @@ pdgstrf_bmod2D_mv2(
 	segsze = krep - kfnz + 1;
 	luptr = xlusup[fsupc];
 
-	flopcnt = segsze * (segsze - 1) + 2 * nrow * segsze;
+        flopcnt = segsze * (segsze - 1) + 2 * nrow * segsze;
 	Gstat->procstat[pnum].fcops += flopcnt;
 
 #ifdef TIMING	    
@@ -136,7 +138,7 @@ pdgstrf_bmod2D_mv2(
 	    luptr += nsupr*(nsupc-1) + nsupc;
 	    for (i = lptr + nsupc; i < xlsub_end[fsupc]; i++) {
 		irow = lsub[i];
-		dense_col[irow] -= ukj * lusup[luptr];
+                dense_col[irow] -= ukj * lusup[luptr];
 		++luptr;
 #ifdef SCATTER_FOUND		
 		if ( col_marker[irow] != jj ) {
@@ -154,13 +156,13 @@ pdgstrf_bmod2D_mv2(
 	    luptr += nsupr*(nsupc-1) + nsupc-1;
 	    luptr1 = luptr - nsupr;
 	    if ( segsze == 2 ) {
-		ukj -= ukj1 * lusup[luptr1];
+                ukj -= ukj1 * lusup[luptr1];
 		dense_col[lsub[krep_ind]] = ukj;
 		for (i = lptr + nsupc; i < xlsub_end[fsupc]; ++i) {
 		    irow = lsub[i];
 		    luptr++; luptr1++;
-		    dense_col[irow] -= (ukj * lusup[luptr]
-					+ ukj1 * lusup[luptr1]);
+                    dense_col[irow] -= (ukj * lusup[luptr]
+                                                + ukj1 * lusup[luptr1]);
 #ifdef SCATTER_FOUND		
 		    if ( col_marker[irow] != jj ) {
 			col_marker[irow] = jj;
@@ -174,14 +176,14 @@ pdgstrf_bmod2D_mv2(
 	    } else {
 		ukj2 = dense_col[lsub[krep_ind - 2]];
 		luptr2 = luptr1 - nsupr;
-		ukj1 -= ukj2 * lusup[luptr2-1];
-		ukj = ukj - ukj1*lusup[luptr1] - ukj2*lusup[luptr2];
+                ukj1 -= ukj2 * lusup[luptr2-1];
+                ukj = ukj - ukj1*lusup[luptr1] - ukj2*lusup[luptr2];
 		dense_col[lsub[krep_ind]] = ukj;
 		dense_col[lsub[krep_ind-1]] = ukj1;
 		for (i = lptr + nsupc; i < xlsub_end[fsupc]; ++i) {
 		    irow = lsub[i];
 		    luptr++; luptr1++; luptr2++;
-		    dense_col[irow] -= (ukj * lusup[luptr]
+                    dense_col[irow] -= (ukj * lusup[luptr]
                              + ukj1*lusup[luptr1] + ukj2*lusup[luptr2]);
 #ifdef SCATTER_FOUND		
 		    if ( col_marker[irow] != jj ) {
@@ -236,8 +238,8 @@ pdgstrf_bmod2D_mv2(
      * --------------------------------------------------------
      */
     for ( r_ind = 0; r_ind < nrow; r_ind += rowblk ) {
-	r_hi = MIN(nrow, r_ind + rowblk);
-	block_nrow = MIN(rowblk, r_hi - r_ind);
+	r_hi = SUPERLU_MIN(nrow, r_ind + rowblk);
+	block_nrow = SUPERLU_MIN(rowblk, r_hi - r_ind);
 	luptr1 = xlusup[fsupc] + nsupc + r_ind;
 	isub1 = lptr + nsupc + r_ind;
 	repfnz_col = repfnz;
@@ -298,7 +300,7 @@ pdgstrf_bmod2D_mv2(
 		}
 		
 		/* Do matrix-vector multiply with two destinations */
-		kfnz = MAX( kfnz2[0], kfnz2[1] );
+		kfnz = SUPERLU_MAX( kfnz2[0], kfnz2[1] );
 		no_zeros = kfnz - fsupc;
 		segsze = krep - kfnz + 1;
 		luptr = luptr1 + nsupr * no_zeros;
@@ -366,7 +368,7 @@ pdgstrf_bmod2D_mv2(
 	    isub = isub1;
 	    for (i = 0; i < block_nrow; ++i) {
 		irow = lsub[isub];
-		dense_col[irow] -= matvec[0][i]; /* Scatter-add */
+                dense_col[irow] -= matvec[0][i]; /* Scatter-add */
 #ifdef SCATTER_FOUND		
 		if ( col_marker[irow] != jj ) {
 		    col_marker[irow] = jj;

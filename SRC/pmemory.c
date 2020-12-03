@@ -13,7 +13,7 @@
 fprintf(stderr, "Storage for %12s exceeded; Current column %d; Need at least %d;\n",\
 	memtype, jcol, new_next); \
 fprintf(stderr, "You may set it by the %d-th parameter in routine sp_ienv().\n", param); \
-ABORT("Memory allocation failed"); \
+SUPERLU_ABORT("Memory allocation failed"); \
 }
 
 /*
@@ -60,7 +60,7 @@ user_bcopy(char *src, char *dest, int bytes)
 int *intMalloc(int n)
 {
     int *buf;
-    buf = (int *) SUPERLU_MALLOC(n * sizeof(int));
+    buf = (int *) SUPERLU_MALLOC( (size_t) n * sizeof(int));
     if ( !buf ) {
 	fprintf(stderr, "SUPERLU_MALLOC failed for buf in intMalloc()\n");
 	exit (1);
@@ -72,7 +72,7 @@ int *intCalloc(int n)
 {
     int *buf;
     register int i;
-    buf = (int *) SUPERLU_MALLOC(n * sizeof(int));
+    buf = (int *) SUPERLU_MALLOC( (size_t) n * sizeof(int));
     if ( !buf ) {
 	fprintf(stderr, "SUPERLU_MALLOC failed for buf in intCalloc()\n");
 	exit (1);
@@ -99,6 +99,7 @@ Glu_alloc(
 	  )
 {
     GlobalLU_t *Glu = pxgstrf_shared->Glu;
+    Gstat_t    *Gstat = pxgstrf_shared->Gstat;
     register int fsupc, nextl, nextu, new_next;
 #ifdef PROFILE
     double   t;
@@ -137,7 +138,7 @@ Glu_alloc(
 		for (j = fsupc; j < i; j += part_super_h[j])
 		    printf("(%d) H snode %d, size %d\n",
 			   pnum, j, part_super_h[j]);
-		ABORT("LUSUP exceeded.");  /* xiaoye */
+		SUPERLU_ABORT("LUSUP exceeded.");  /* xiaoye */
 	    }
 	}	    
 #endif	
@@ -158,6 +159,8 @@ Glu_alloc(
 #pragma critical lock( pxgstrf_shared->lu_locks[ULOCK] )
 #elif ( MACH==CRAY_PVP )
 #pragma _CRI guard ULOCK
+#elif ( MACH==OPENMP )
+#pragma omp critical (ULOCK)
 #endif	
 	{
 	    nextu = Glu->nextu;
@@ -199,6 +202,8 @@ Glu_alloc(
 #pragma critical lock( pxgstrf_shared->lu_locks[LLOCK] )
 #elif ( MACH==CRAY_PVP )
 #pragma _CRI guard LLOCK
+#elif ( MACH==OPENMP )
+#pragma omp critical (LLOCK)
 #endif	
 	{
 	  nextl = Glu->nextl;
@@ -231,130 +236,6 @@ Glu_alloc(
 }
 
 /*
- * Set up memory image in lusup[*], using the supernode boundaries in 
- * the Householder matrix.
- * 
- * In both static and dynamic scheme, the relaxed supernodes (leaves) 
- * are stored in the beginning of lusup[*]. In the static scheme, the
- * memory is also set aside for the internal supernodes using upper
- * bound information from H. In the dynamic scheme, however, the memory
- * for the internal supernodes is not allocated by this routine.
- *
- * Return value
- *   o Static scheme: number of nonzeros of all the supernodes in H.
- *   o Dynamic scheme: number of nonzeros of the relaxed supernodes. 
- */
-int
-PresetMap(
-	  const int n,
-	  SuperMatrix *A, /* original matrix permuted by columns */
-	  pxgstrf_relax_t *pxgstrf_relax, /* relaxed supernodes */
-	  pdgstrf_options_t *pdgstrf_options, /* input */
-	  GlobalLU_t *Glu /* modified */
-	  )
-{
-    register int i, j, k, w, rs, rs_lastcol, krow, kmark, maxsup, nextpos;
-    register int rs_nrow; /* number of nonzero rows in a relaxed supernode */
-    int          *marker, *asub, *xa_begin, *xa_end;
-    NCPformat    *Astore;
-    int *map_in_sup; /* memory mapping function; values irrelevant on entry. */
-    int *colcnt;     /* column count of Lc or H */
-    int *super_bnd;  /* supernodes partition in H */
-    char *snode_env, *getenv();
-
-    snode_env = getenv("SuperLU_DYNAMIC_SNODE_STORE");
-    if ( snode_env != NULL ) {
-	Glu->dynamic_snode_bound = YES;
-#if ( PRNTlevel>=1 )
-	printf(".. Use dynamic alg. to allocate storage for L supernodes.\n");
-#endif
-    } else  Glu->dynamic_snode_bound = NO;
-
-    Astore   = A->Store;
-    asub     = Astore->rowind;
-    xa_begin = Astore->colbeg;
-    xa_end   = Astore->colend;
-    rs       = 1;
-    marker   = intMalloc(n);
-    ifill(marker, n, EMPTY);
-    map_in_sup = Glu->map_in_sup = intCalloc(n+1);
-    colcnt = pdgstrf_options->colcnt_h;
-    super_bnd = pdgstrf_options->part_super_h;
-    nextpos = 0;
-
-    /* Split large supernode into smaller pieces */
-    maxsup = sp_ienv(3);
-    for (j = 0; j < n; ) {
-	w = super_bnd[j];
-	k = j + w;
-	if ( w > maxsup ) {
-	    w = w % maxsup;
-	    if ( w == 0 ) w = maxsup;
-	    while ( j < k ) {
-		super_bnd[j] = w;
-		j += w;
-		w = maxsup;
-	    }
-	}
-	j = k;
-    }
-    
-    for (j = 0; j < n; j += w) {
-        if ( Glu->dynamic_snode_bound == NO ) map_in_sup[j] = nextpos;
-
-	if ( pxgstrf_relax[rs].fcol == j ) {
-	    /* Column j starts a relaxed supernode. */
-	    map_in_sup[j] = nextpos;
-	    rs_nrow = 0;
-	    w = pxgstrf_relax[rs++].size;
-	    rs_lastcol = j + w;
-	    for (i = j; i < rs_lastcol; ++i) {
-		/* for each nonzero in A[*,i] */
-		for (k = xa_begin[i]; k < xa_end[i]; k++) {	
-		    krow = asub[k];
-		    kmark = marker[krow];
-		    if ( kmark != j ) { /* first time visit krow */
-			marker[krow] = j;
-			++rs_nrow;
-		    }
-		}
-	    }
-	    nextpos += w * rs_nrow;
-	    
-	    /* Find the next H-supernode, with leading column i, which is
-	       outside the relaxed supernode, rs. */
-	    for (i = j; i < rs_lastcol; k = i, i += super_bnd[i]);
-	    if ( i > rs_lastcol ) {
-		/* The w columns [rs_lastcol, i) may join in the
-		   preceeding relaxed supernode; make sure we leave
-		   enough room for the combined supernode. */
-		w = i - rs_lastcol;
-		nextpos += w * MAX(rs_nrow, colcnt[k]);
-	    }
-	    w = i - j;
-	} else { /* Column j starts a supernode in H */
-	    w = super_bnd[j];
-	    if ( Glu->dynamic_snode_bound == NO ) nextpos += w * colcnt[j];
-	}
-
-	/* Set up the offset (negative) to the leading column j of a
-	   supernode in H */ 
-	for (i = 1; i < w; ++i) map_in_sup[j + i] = -i;
-	
-    } /* for j ... */
-
-    if ( Glu->dynamic_snode_bound == YES ) Glu->nextlu = nextpos;
-    else map_in_sup[n] = nextpos;
-
-#if ( PRNTlevel>=1 )
-    printf("** PresetMap() allocates %d reals to lusup[*]....\n", nextpos);
-#endif
-
-    free (marker);
-    return nextpos;
-}
-
-/*
  * Dynamically set up storage image in lusup[*], using the supernode
  * boundaries in H.
  */
@@ -367,6 +248,7 @@ DynamicSetMap(
 	      )
 {
     GlobalLU_t *Glu = pxgstrf_shared->Glu;
+    Gstat_t    *Gstat = pxgstrf_shared->Gstat;
     register int nextlu, new_next;
     int *map_in_sup = Glu->map_in_sup; /* modified; memory mapping function */
     
@@ -382,6 +264,8 @@ DynamicSetMap(
 #pragma critical lock ( pxgstrf_shared->lu_locks[LULOCK] )
 #elif ( MACH==CRAY_PVP )
 #pragma _CRI guard LULOCK
+#elif ( MACH==OPENMP )
+#pragma omp critical (LULOCK)
 #endif
     {
 	nextlu = Glu->nextlu;

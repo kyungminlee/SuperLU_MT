@@ -1,4 +1,4 @@
-#include "machines.h"
+#include "slu_mt_machines.h"
 
 int
 sp_ienv(int ispec)
@@ -93,15 +93,15 @@ sp_ienv(int ispec)
 	case 4: return (400);
 	case 5: return (40);
 #else
-	case 1: return (8);
+	case 1: return (20);
 	case 2: return (6);
-	case 3: return (100);
+	case 3: return (200);
 	case 4: return (200);
-	case 5: return (40);
+	case 5: return (100);
 #endif
-        case 6: return (-20);
-        case 7: return (-20);
-        case 8: return (-10);
+        case 6: return (-50);
+        case 7: return (-50);
+        case 8: return (-30);
     }
 
     /* Invalid value for ISPEC */

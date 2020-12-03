@@ -1,3 +1,4 @@
+
 #include "pdsp_defs.h"
 
 int
@@ -16,10 +17,10 @@ pdgstrf_snode_dfs(
 		  )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Purpose
  * =======
@@ -43,8 +44,7 @@ pdgstrf_snode_dfs(
     supno                 = Glu->supno;
     xlsub                 = Glu->xlsub;
     xlsub_end             = Glu->xlsub_end;
-    nsuper = NewNsuper(pnum, &pxgstrf_shared->lu_locks[NSUPER_LOCK],
-		       &Glu->nsuper);
+    nsuper = NewNsuper(pnum, pxgstrf_shared, &Glu->nsuper);
     Glu->xsup[nsuper]     = jcol;
     Glu->xsup_end[nsuper] = kcol + 1;
     

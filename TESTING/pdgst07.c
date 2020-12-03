@@ -7,10 +7,10 @@ int pdgst07(trans_t *trans, int n, int nrhs, SuperMatrix *A, double *b,
 	    int ldxact, double *ferr, double *berr, double *reslts)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  *  Purpose   
  *  =======   
@@ -91,7 +91,7 @@ int pdgst07(trans_t *trans, int n, int nrhs, SuperMatrix *A, double *b,
     int c__1 = 1;
 
     /* System generated locals */
-    double d__1, d__2, d__3, d__4;
+    double d__1, d__2;
 
     /* Local variables */
     double diff, axbi;
@@ -124,7 +124,7 @@ int pdgst07(trans_t *trans, int n, int nrhs, SuperMatrix *A, double *b,
     notran = (trans == NOTRANS);
 
     rwork  = (double *) SUPERLU_MALLOC(n*sizeof(double));
-    if ( !rwork ) ABORT("SUPERLU_MALLOC fails for rwork");
+    if ( !rwork ) SUPERLU_ABORT("SUPERLU_MALLOC fails for rwork");
     Astore = A->Store;
     Aval   = (double *) Astore->nzval;
     
@@ -136,12 +136,12 @@ int pdgst07(trans_t *trans, int n, int nrhs, SuperMatrix *A, double *b,
     for (j = 0; j < nrhs; ++j) {
 	n__1 = n;
 	imax = idamax_(&n__1, &x[j*ldx], &c__1);
-	d__1 = fabs(x[imax-1 + j*ldx]);
-	xnorm = MAX(d__1,unfl);
+        d__1 = fabs(x[imax-1 + j*ldx]);
+	xnorm = SUPERLU_MAX(d__1,unfl);
 	diff = 0.;
 	for (i = 0; i < n; ++i) {
-	    d__1 = fabs(x[i+j*ldx] - xact[i+j*ldxact]);
-	    diff = MAX(diff, d__1);
+            d__1 = fabs(x[i+j*ldx] - xact[i+j*ldxact]);
+	    diff = SUPERLU_MAX(diff, d__1);
 	}
 
 	if (xnorm > 1.) {
@@ -157,13 +157,13 @@ L20:
 #if 0	
 	if (diff / xnorm <= ferr[j]) {
 	    d__1 = diff / xnorm / ferr[j];
-	    errbnd = MAX(errbnd,d__1);
+	    errbnd = SUPERLU_MAX(errbnd,d__1);
 	} else {
 	    errbnd = 1. / eps;
 	}
 #endif
 	d__1 = diff / xnorm / ferr[j];
-	errbnd = MAX(errbnd,d__1);
+	errbnd = SUPERLU_MAX(errbnd,d__1);
 	/*printf("Ferr: %f\n", errbnd);*/
 L30:
 	;
@@ -178,9 +178,9 @@ L30:
             rwork[i] = fabs( b[i + k*ldb] );
 	if ( notran ) {
 	    for (j = 0; j < n; ++j) {
-		tmp = fabs( x[j + k*ldx] );
+                tmp = fabs( x[j + k*ldx] );
 		for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; ++i) {
-		    rwork[Astore->rowind[i]] += fabs(Aval[i]) * tmp;
+                    rwork[Astore->rowind[i]] += fabs(Aval[i]) * tmp;
                 }
 	    }
 	} else {
@@ -188,24 +188,24 @@ L30:
 		tmp = 0.;
 		for (i = Astore->colptr[j]; i < Astore->colptr[j+1]; ++i) {
 		    irow = Astore->rowind[i];
-		    d__1 = fabs( x[irow + k*ldx] );
-		    tmp += fabs(Aval[i]) * d__1;
+                    d__1 = fabs( x[irow + k*ldx] );
+                    tmp += fabs(Aval[i]) * d__1;
 		}
 		rwork[j] += tmp;
 	    }
 	}
 
 	axbi = rwork[0];
-	for (i = 1; i < n; ++i) axbi = MIN(axbi, rwork[i]);
+	for (i = 1; i < n; ++i) axbi = SUPERLU_MIN(axbi, rwork[i]);
 	
 	/* Computing MAX */
 	d__1 = axbi, d__2 = (n + 1) * unfl;
-	tmp = berr[k] / ((n + 1) * eps + (n + 1) * unfl / MAX(d__1,d__2));
+	tmp = berr[k] / ((n + 1) * eps + (n + 1) * unfl / SUPERLU_MAX(d__1,d__2));
 	
 	if (k == 0) {
 	    reslts[1] = tmp;
 	} else {
-	    reslts[1] = MAX(reslts[1],tmp);
+	    reslts[1] = SUPERLU_MAX(reslts[1], tmp);
 	}
     }
 

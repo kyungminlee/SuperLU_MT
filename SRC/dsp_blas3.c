@@ -1,48 +1,61 @@
+
 /*
- * -- SuperLU MT routine (version 1.0) --
+ * -- SuperLU routine (version 1.0) --
  * Univ. of California Berkeley, Xerox Palo Alto Research Center,
  * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * November 15, 1997
  *
- * Sparse BLAS-3, using some dense BLAS-3 operations.
+ */
+/*
+ * File name:		sp_blas3.c
+ * Purpose:		Sparse BLAS3, using some dense BLAS3 operations.
  */
 
 #include "pdsp_defs.h"
 
+
 int
-sp_dgemm(char *trans, int m, int n, int k, double alpha, SuperMatrix *A,
-	 double *b, int ldb, double beta, double *c, int ldc)
+sp_dgemm(char *trans, int m, int n, int k, 
+         double alpha, SuperMatrix *A, double *b, int ldb, 
+         double beta, double *c, int ldc)
 {
 /*  Purpose   
     =======   
 
-    sp_dgemm()  performs one of the matrix-vector operations   
-       y := alpha*A*x + beta*y,   or   y := alpha*A'*x + beta*y,   
-    where alpha and beta are scalars, x and y are vectors and A is a
-    sparse m by n matrix.   
+    sp_d performs one of the matrix-matrix operations   
+
+       C := alpha*op( A )*op( B ) + beta*C,   
+
+    where  op( X ) is one of 
+
+       op( X ) = X   or   op( X ) = X'   or   op( X ) = conjg( X' ),
+
+    alpha and beta are scalars, and A, B and C are matrices, with op( A ) 
+    an m by k matrix,  op( B )  a  k by n matrix and  C an m by n matrix. 
+  
 
     Parameters   
     ==========   
 
     TRANS  - (input) char*
-             On entry, TRANS specifies the operation to be performed as   
-             follows:   
-                TRANS = 'N' or 'n'   y := alpha*A*x + beta*y.   
-                TRANS = 'T' or 't'   y := alpha*A'*x + beta*y.   
-                TRANS = 'C' or 'c'   y := alpha*A'*x + beta*y.   
+             On entry, TRANS specifies the operation to be performed as
+             follows:
+                TRANS = 'N' or 'n'   y := alpha*A*x + beta*y.
+                TRANS = 'T' or 't'   y := alpha*A'*x + beta*y.
+                TRANS = 'C' or 'c'   y := alpha*A'*x + beta*y.
 
-    M      - int   
+    M      - (input) int   
              On entry,  M  specifies  the number of rows of the matrix 
 	     op( A ) and of the matrix C.  M must be at least zero. 
 	     Unchanged on exit.   
 
-    N      - int
+    N      - (input) int
              On entry,  N specifies the number of columns of the matrix 
 	     op( B ) and the number of columns of the matrix C. N must be 
 	     at least zero.
 	     Unchanged on exit.   
 
-    K      - int
+    K      - (input) int
              On entry, K specifies the number of columns of the matrix 
 	     op( A ) and the number of rows of the matrix op( B ). K must 
 	     be at least  zero.   
@@ -52,22 +65,27 @@ sp_dgemm(char *trans, int m, int n, int k, double alpha, SuperMatrix *A,
              On entry, ALPHA specifies the scalar alpha.   
 
     A      - (input) SuperMatrix*
-             Before entry, the leading m by n part of the array A must   
-             contain the matrix of coefficients.   
+             Matrix A with a sparse format, of dimension (A->nrow, A->ncol).
+             Currently, the type of A can be:
+                 Stype = NC or NCP; Dtype = SLU_D; Mtype = GE. 
+             In the future, more general A can be handled.
 
-    B      - DOUBLE PRECISION array of DIMENSION ( LDB, n ),
-             Before entry thhe leading  k by n part of the array B must
-	     contain the matrix B.
+    B      - DOUBLE PRECISION array of DIMENSION ( LDB, kb ), where kb is 
+             n when TRANSB = 'N' or 'n',  and is  k otherwise.   
+             Before entry with  TRANSB = 'N' or 'n',  the leading k by n 
+             part of the array B must contain the matrix B, otherwise 
+             the leading n by k part of the array B must contain the 
+             matrix B.   
              Unchanged on exit.   
 
-    LDB    - INTEGER.   
+    LDB    - (input) int
              On entry, LDB specifies the first dimension of B as declared 
              in the calling (sub) program. LDB must be at least max( 1, n ).  
              Unchanged on exit.   
 
     BETA   - (input) double
              On entry, BETA specifies the scalar beta. When BETA is   
-             supplied as zero then Y need not be set on input.   
+             supplied as zero then C need not be set on input.   
 
     C      - DOUBLE PRECISION array of DIMENSION ( LDC, n ).   
              Before entry, the leading m by n part of the array C must 
@@ -76,7 +94,7 @@ sp_dgemm(char *trans, int m, int n, int k, double alpha, SuperMatrix *A,
              On exit, the array C is overwritten by the m by n matrix 
 	     ( alpha*op( A )*B + beta*C ).   
 
-    LDC    - INTEGER.   
+    LDC    - (input) int
              On entry, LDC specifies the first dimension of C as declared 
              in the calling (sub)program. LDC must be at least max(1,m).   
              Unchanged on exit.   
@@ -89,6 +107,5 @@ sp_dgemm(char *trans, int m, int n, int k, double alpha, SuperMatrix *A,
     for (j = 0; j < n; ++j) {
 	sp_dgemv(trans, alpha, A, &b[ldb*j], incx, beta, &c[ldc*j], incy);
     }
-    
-    return 0;
+    return 0;    
 }

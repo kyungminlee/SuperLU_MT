@@ -340,8 +340,12 @@ typedef struct RowInfo_struct
 /* === Definitions ========================================================== */
 /* ========================================================================== */
 
+#ifndef MAX
 #define MAX(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef MIN
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#endif
 
 #define ONES_COMPLEMENT(r) (-(r)-1)
 

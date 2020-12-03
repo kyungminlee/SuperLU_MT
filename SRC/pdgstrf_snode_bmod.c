@@ -1,3 +1,4 @@
+
 #include "pdsp_defs.h"
 
 int
@@ -13,19 +14,24 @@ pdgstrf_snode_bmod(
 		   )
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
  *
  * Performs numeric block updates within the relaxed supernode. 
  */
+
+    double      zero = 0.0;
+    double      one = 1.0;
+    double      none = -1.0;
+
 #if ( MACH==CRAY_PVP )
     _fcd ftcs1, ftcs2, ftcs3;
 #endif
 #ifdef USE_VENDOR_BLAS    
     int            incx = 1, incy = 1;
-    double         alpha = -1.0, beta = 1.0;
+    double         alpha = none, beta = one;
 #endif
     
     int            luptr, nsupc, nsupr, nrow;
@@ -50,7 +56,7 @@ pdgstrf_snode_bmod(
     for (isub = xlsub[fsupc]; isub < xlsub_end[fsupc]; isub++) {
   	irow = lsub[isub];
 	lusup[nextlu] = dense[irow];
-	dense[irow] = 0;
+	dense[irow] = zero;
 	++nextlu;
     }
 
@@ -65,7 +71,7 @@ pdgstrf_snode_bmod(
 				   jcol in supernode L\U(jsupno). */
 	nrow = nsupr - nsupc;
 	
-	flopcnt = nsupc * (nsupc - 1) + 2 * nrow * nsupc;
+        flopcnt = nsupc * (nsupc - 1) + 2 * nrow * nsupc;
 	Gstat->procstat[pnum].fcops += flopcnt;
 
 /*	ops[TRSV] += nsupc * (nsupc - 1);
@@ -94,8 +100,8 @@ pdgstrf_snode_bmod(
         /* Scatter tempv[*] into lusup[*] */
 	iptr = ufirst + nsupc;
 	for (i = 0; i < nrow; i++) {
-	    lusup[iptr++] -= tempv[i];
-	    tempv[i] = 0.0;
+            lusup[iptr++] -= tempv[i];
+            tempv[i] = zero;
 	}
 #endif
 

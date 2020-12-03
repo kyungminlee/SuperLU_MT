@@ -1,16 +1,18 @@
+
 #include "pdsp_defs.h"
 
 pdgstrf_threadarg_t *
 pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
-		    pdgstrf_options_t *pdgstrf_options, 
+		    superlumt_options_t *options, 
 		    pxgstrf_shared_t *pxgstrf_shared,
 		    Gstat_t *Gstat, int *info)
 {
 /*
- * -- SuperLU MT routine (version 1.0) --
- * Univ. of California Berkeley, Xerox Palo Alto Research Center,
- * and Lawrence Berkeley National Lab.
- * August 15, 1997
+ * -- SuperLU MT routine (version 2.0) --
+ * Lawrence Berkeley National Lab, Univ. of California Berkeley,
+ * and Xerox Palo Alto Research Center.
+ * September 10, 2007
+ *
  *
  * Purpose
  * =======
@@ -27,21 +29,21 @@ pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
  *          Stype = NCP; Dtype = _D; Mtype = GE.
  *
  * L        (input) SuperMatrix*
- *          If pdgstrf_options->refact = YES, then use the existing
+ *          If options->refact = YES, then use the existing
  *          storage in L to perform LU factorization;
  *          Otherwise, L is not accessed. L has types: 
  *          Stype = SCP, Dtype = _D, Mtype = TRLU.
  *
  * U        (input) SuperMatrix*
- *          If pdgstrf_options->refact = YES, then use the existing
+ *          If options->refact = YES, then use the existing
  *          storage in U to perform LU factorization;
  *          Otherwise, U is not accessed. U has types:
  *          Stype = NCP, Dtype = _D, Mtype = TRU.
  *
- * pdgstrf_options (input) pdgstrf_options_t*
+ * options (input) superlumt_options_t*
  *          The structure contains the parameters to control how the
  *          factorization is performed;
- *          See pdgstrf_options_t structure defined in pdsp_defs.h.
+ *          See superlumt_options_t structure defined in slu_mt_util.h.
  *
  * pxgstrf_shared (output) pxgstrf_shared_t*
  *          The structure contains the shared task queue and the 
@@ -50,11 +52,11 @@ pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
  *
  * Gstat    (output) Gstat_t*
  *          Record all the statistics about the factorization; 
- *          See Gstat_t structure defined in util.h.
+ *          See Gstat_t structure defined in slu_mt_util.h.
  *
  * info     (output) int*
  *          = 0: successful exit
- *          > 0: if pdgstrf_options->lwork = -1, info returns the estimated
+ *          > 0: if options->lwork = -1, info returns the estimated
  *               amount of memory (in bytes) required;
  *               Otherwise, it returns the number of bytes allocated when
  *               memory allocation failure occurred, plus A->ncol.
@@ -77,9 +79,9 @@ pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     int   nzlumax;
     pxgstrf_relax_t *pxgstrf_relax;
     
-    nprocs     = pdgstrf_options->nprocs;
-    perm_c     = pdgstrf_options->perm_c;
-    perm_r     = pdgstrf_options->perm_r;
+    nprocs     = options->nprocs;
+    perm_c     = options->perm_c;
+    perm_r     = options->perm_r;
     n          = A->ncol;
     Astore     = A->Store;
     inv_perm_r = (int *) intMalloc(n);
@@ -97,7 +99,7 @@ pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     pxgstrf_shared->Gstat        = Gstat;
     pxgstrf_shared->info         = info;
 
-    if ( pdgstrf_options->usepr ) {
+    if ( options->usepr ) {
 	/* Compute the inverse of perm_r */
 	for (i = 0; i < n; ++i) inv_perm_r[perm_r[i]] = i;
     }
@@ -112,20 +114,24 @@ pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
 
     /* Identify relaxed supernodes at the bottom of the etree. */
     pxgstrf_relax = (pxgstrf_relax_t *)
-        SUPERLU_MALLOC((n+2) * sizeof(pxgstrf_relax_t));
-    pxgstrf_relax_snode(n, pdgstrf_options, pxgstrf_relax);
+        SUPERLU_MALLOC( (size_t) (n+2) * sizeof(pxgstrf_relax_t) );
+    if ( options->SymmetricMode == YES ) {
+        heap_relax_snode(n, options, pxgstrf_relax);
+    } else {
+        pxgstrf_relax_snode(n, options, pxgstrf_relax);
+    }        
     
     /* Initialize mutex variables, task queue, determine panels. */
-    ParallelInit(n, pxgstrf_relax, pdgstrf_options, pxgstrf_shared);
+    ParallelInit(n, pxgstrf_relax, options, pxgstrf_shared);
     
     /* Set up memory image in lusup[*]. */
-    nzlumax = PresetMap(n, A, pxgstrf_relax, pdgstrf_options, &Glu);
-    if ( pdgstrf_options->refact == NO ) Glu.nzlumax = nzlumax;
+    nzlumax = dPresetMap(n, A, pxgstrf_relax, options, &Glu);
+    if ( options->refact == NO ) Glu.nzlumax = nzlumax;
     
     SUPERLU_FREE (pxgstrf_relax);
 
     /* Allocate global storage common to all the factor routines */
-    *info = pdgstrf_MemInit(n, Astore->nnz, pdgstrf_options, L, U, &Glu);
+    *info = pdgstrf_MemInit(n, Astore->nnz, options, L, U, &Glu);
     if ( *info ) return NULL;
 
     /* Prepare arguments to all threads. */
@@ -134,7 +140,7 @@ pdgstrf_thread_init(SuperMatrix *A, SuperMatrix *L, SuperMatrix *U,
     for (i = 0; i < nprocs; ++i) {
         pdgstrf_threadarg[i].pnum = i;
         pdgstrf_threadarg[i].info = 0;
-	pdgstrf_threadarg[i].pdgstrf_options = pdgstrf_options;
+	pdgstrf_threadarg[i].superlumt_options = options;
 	pdgstrf_threadarg[i].pxgstrf_shared = pxgstrf_shared;
     }
 
