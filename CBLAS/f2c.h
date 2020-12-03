@@ -9,6 +9,11 @@
 #ifndef F2C_INCLUDE
 #define F2C_INCLUDE
 
+#if 0
+typedef long int integer; /* 64 on 64-bit machine */
+typedef long int logical;
+#endif
+
 typedef int integer;
 typedef int logical;
 

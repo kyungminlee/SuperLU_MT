@@ -52,7 +52,7 @@ main(int argc, char *argv[])
     refact= NO;
     panel_size = sp_ienv(1);
     relax = sp_ienv(2);
-    u     = 1.0;
+    u     = 0.0;
     usepr = NO;
     drop_tol = 0.0;
     lwork = 0;
@@ -132,7 +132,7 @@ main(int argc, char *argv[])
     get_perm_c(permc_spec, &A, perm_c);
 
     superlumt_options.SymmetricMode = YES;
-    superlumt_options.diag_pivot_thresh = 0.0;
+    superlumt_options.diag_pivot_thresh = u;
 
     superlumt_options.nprocs = nprocs;
     superlumt_options.fact = fact;
