@@ -14,7 +14,7 @@
 #
 #  The machine (platform) identifier to append to the library names
 #
-PLAT = _PTHREAD
+PLAT = _examplar
 
 #
 #  The name of the libraries to be created/linked to
@@ -37,7 +37,7 @@ RANLIB       	= ranlib
 
 ############################################################################
 # Definitions used by CPP:
-PREDEFS      	= -D$(PLAT)
+PREDEFS      	= -D__PTHREAD
 #
 CC           	= cc
 CFLAGS       	= $(PREDEFS) -Ae +O2 +Odataprefetch +Onolimit

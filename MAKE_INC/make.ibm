@@ -1,6 +1,6 @@
 ############################################################################
 #
-#  Program:         SuperLU
+#  Program:         SuperLU_MT
 #
 #  Module:          make.inc
 #
@@ -43,7 +43,7 @@ RANLIB       = ranlib
 
 ############################################################################
 # Definitions used by CPP:
-PREDEFS      	= -D_PTHREAD
+PREDEFS      	= -D__PTHREAD
 #
 CC           = xlc
 CFLAGS       = -qarch=pwr3 -qalias=allptrs $(PREDEFS) -O3

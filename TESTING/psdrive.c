@@ -65,7 +65,7 @@ main(int argc, char *argv[])
     superlumt_options_t superlumt_options;
     superlu_memusage_t superlu_memusage;
     char matrix_type[8];
-    char path[3], sym[1], dist[1];
+    char path[4], sym[1], dist[1];
     fact_t fact;
     trans_t trans;
     equed_t equed;

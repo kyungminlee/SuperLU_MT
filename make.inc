@@ -21,8 +21,7 @@ PLAT = _PTHREAD
 #
 TMGLIB       	= libtmglib$(PLAT).a
 SUPERLULIB   	= libsuperlu_mt$(PLAT).a
-#BLASDEF	        = -DUSE_VENDOR_BLAS
-BLASLIB = ../lib/libblas$(PLAT).a
+BLASLIB		= ../lib/libblas$(PLAT).a
 MATHLIB		= -lm 
 MPLIB		= -lpthread
 
@@ -37,10 +36,10 @@ RANLIB       	= ranlib
 ############################################################################
 #
 # Definitions used by CPP:
-PREDEFS      	= -D$(PLAT)
+PREDEFS      	= -D__PTHREAD
 #
 CC           	= gcc
-CFLAGS       	= $(PREDEFS) -g -DDEBUGlevel=1 -DPRNTlevel=3
+CFLAGS       	= $(PREDEFS) -O3
 #
 # There are a few files that should NOT be optimized, which appear in the
 # end of SRC/Makefile, taking the flag $(NOOPTS)

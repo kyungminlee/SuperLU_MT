@@ -5,6 +5,8 @@
  * and Xerox Palo Alto Research Center.
  * September 10, 2007
  *
+ * Last modified: 02/15/2013
+ *
  * Purpose
  * =======
  *
@@ -151,7 +153,7 @@ main(int argc, char *argv[])
        ------------------------------------------------------------*/
     vlength = 1000;
     xdot = zero;
-    xvector = (float *) malloc(vlength * sizeof(float));
+    xvector = floatMalloc(vlength);
     for (i = 0; i < vlength; ++i){
         xvector[i] = i+1;
     }
@@ -192,6 +194,8 @@ main(int argc, char *argv[])
 	 
     /* Wait for all threads to terminate. */
     for (i = 0; i < nprocs; i++) pthread_join(thread_id[i], 0, 0);
+
+    SUPERLU_FREE (sspmd_arg);
     SUPERLU_FREE (thread_id);
 
 #elif ( MACH==DEC || MACH==PTHREAD ) /* Use pthread ... */
@@ -213,7 +217,10 @@ main(int argc, char *argv[])
 	 
     /* Wait for all threads to terminate. */
     for (i = 0; i < nprocs; i++) pthread_join(thread_id[i], &status);
+
+    SUPERLU_FREE (sspmd_arg);
     SUPERLU_FREE (thread_id);
+
 /* _PTHREAD */
 
 #elif ( MACH==SGI || MACH==ORIGIN ) /* Use parallel C ... */
@@ -298,6 +305,10 @@ main(int argc, char *argv[])
         Destroy_SuperNode_SCP(&L);
         Destroy_CompCol_NCP(&U);
     }
+    StatFree(&Gstat);
+
+    SUPERLU_FREE (psdot_threadarg);
+    SUPERLU_FREE (xvector);
 
 #if ( MACH==SUN )
     mutex_destroy( &psdot_lock );

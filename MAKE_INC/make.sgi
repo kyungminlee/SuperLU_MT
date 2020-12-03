@@ -41,7 +41,7 @@ RANLIB       	= echo
 CC	     	= cc
 #
 # Definitions used by CPP:
-PREDEFS      	= -D$(PLAT) #-DGEMV2
+PREDEFS      	= -D__SGI #-DGEMV2
 CFLAGS       	= $(PREDEFS) -O3 -mp -mips4 -64
 
 #

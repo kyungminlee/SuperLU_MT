@@ -43,7 +43,7 @@ RANLIB       	= echo
 CC	     	= cc
 #
 # Definitions used by CPP:
-PREDEFS      	= -D$(PLAT)
+PREDEFS      	= -D__ORIGIN
 #
 ISA	     	= -64 -mips4
 POWERC	     	= -pca 

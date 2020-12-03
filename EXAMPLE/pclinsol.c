@@ -114,6 +114,7 @@ main(int argc, char *argv[])
     SUPERLU_FREE (xact);
     SUPERLU_FREE (perm_r);
     SUPERLU_FREE (perm_c);
+    Destroy_CompCol_Matrix(&A);
     Destroy_SuperMatrix_Store(&B);
     Destroy_SuperNode_SCP(&L);
     Destroy_CompCol_NCP(&U);

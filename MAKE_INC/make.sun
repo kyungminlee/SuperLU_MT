@@ -36,7 +36,7 @@ RANLIB       	= ranlib
 CC	     	= cc
 #
 # Definitions used by CPP:
-PREDEFS      	= -D$(PLAT)
+PREDEFS      	= -D__SOLARIS
 #
 CFLAGS       	= $(PREDEFS) -xO3 -xcg92 $(DBG)
 #

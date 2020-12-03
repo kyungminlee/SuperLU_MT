@@ -14,7 +14,7 @@
 #
 #  The machine (platform) identifier to append to the library names
 #
-PLAT = _DEC
+PLAT = _dec
 
 #
 #  The name of the libraries to be created/linked to
@@ -36,7 +36,7 @@ RANLIB       = ranlib
 
 ############################################################################
 # Definitions used by CPP:
-PREDEFS      = -D$(PLAT)
+PREDEFS      = -D__DEC
 #
 CC           = cc
 CFLAGS       = $(PREDEFS) -migrate -O5 -tune ev5 -ansi_alias -fp_reorder

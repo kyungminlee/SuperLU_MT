@@ -44,7 +44,7 @@ RANLIB       = ranlib
 
 ############################################################################
 # Definitions used by CPP:
-PREDEFS      	= -D_PTHREAD
+PREDEFS      	= -D__PTHREAD
 #
 CC           = cc
 CFLAGS       = $(PREDEFS) -fast -Mipa=fast,safe -DDEBUGlevel=0 -DPRNTlevel=0

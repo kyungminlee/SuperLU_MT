@@ -41,7 +41,7 @@ RANLIB       = ranlib
 ############################################################################
 CC           = icc
 ISA	     = -ftz
-CFLAGS       = $(ISA) -O3 -D_PTHREAD
+CFLAGS       = $(ISA) -O3 -D__PTHREAD
 
 # There are a few files that should NOT be optimized, which appear in the
 # end of SRC/Makefile, taking the flag $(NOOPTS)

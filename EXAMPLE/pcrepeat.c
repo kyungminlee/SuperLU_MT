@@ -5,6 +5,7 @@
  * and Xerox Palo Alto Research Center.
  * September 10, 2007
  *
+ * Last modified: 02/14/2013
  *
  * Purpose 
  * =======
@@ -127,6 +128,8 @@ main(int argc, char *argv[])
     
     printf("\n** Result of sparse LU **\n");
     cinf_norm_error(nrhs, &B, xact); /* Check inf. norm of the error */
+
+    Destroy_CompCol_Permuted(&AC); /* Free extra arrays in AC. */
 
 
     /*********************************
