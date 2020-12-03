@@ -1,6 +1,6 @@
 
 /*
- * -- SuperLU MT routine (version 2.0) --
+ * -- SuperLU MT routine (version 3.0) --
  * Lawrence Berkeley National Lab, Univ. of California Berkeley,
  * and Xerox Palo Alto Research Center.
  * September 10, 2007
@@ -8,11 +8,11 @@
  * History:     Modified from LAPACK routine DGEEQU
  */
 #include <math.h>
-#include "pdsp_defs.h"
+#include "slu_mt_ddefs.h"
 
 void
 dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
-        double *colcnd, double *amax, int *info)
+        double *colcnd, double *amax, int_t *info)
 {
 /*    
     Purpose   
@@ -62,7 +62,7 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
             close to overflow or very close to underflow, the matrix   
             should be scaled.
 	    
-    INFO    (output) int*
+    INFO    (output) int_t*
             = 0:  successful exit   
             < 0:  if INFO = -i, the i-th argument had an illegal value   
             > 0:  if INFO = i,  and i is   
@@ -75,7 +75,8 @@ dgsequ(SuperMatrix *A, double *r, double *c, double *rowcnd,
     /* Local variables */
     NCformat *Astore;
     double   *Aval;
-    int i, j, irow;
+    int_t j, irow;
+    int   i;
     double rcmin, rcmax;
     double bignum, smlnum;
     extern double dlamch_(char *);

@@ -1,6 +1,6 @@
 
 /*
- * -- SuperLU routine (version 2.0) --
+ * -- SuperLU routine (version 3.0) --
  * Lawrence Berkeley National Lab, Univ. of California Berkeley,
  * and Xerox Palo Alto Research Center.
  * September 10, 2007
@@ -11,7 +11,7 @@
  * History:     Modified from lapack routine SLANGE
  */
 #include <math.h>
-#include "pssp_defs.h"
+#include "slu_mt_sdefs.h"
 
 
 float slangs(char *norm, SuperMatrix *A)
@@ -56,7 +56,7 @@ float slangs(char *norm, SuperMatrix *A)
     /* Local variables */
     NCformat *Astore;
     float   *Aval;
-    int      i, j, irow;
+    int_t      i, j, irow;
     float   value, sum;
     float   *rwork;
 

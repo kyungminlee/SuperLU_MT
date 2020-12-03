@@ -1,29 +1,29 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "pzsp_defs.h"
+#include "slu_mt_zdefs.h"
 
 
-void zlsolve(int, int, doublecomplex *, doublecomplex *);
-void zmatvec(int, int, int, doublecomplex *, doublecomplex *, doublecomplex *);
-void zmatvec2(int, int, int, doublecomplex*, doublecomplex*, doublecomplex*, doublecomplex*, doublecomplex*);
+void zlsolve(int_t, int_t, doublecomplex *, doublecomplex *);
+void zmatvec(int_t, int_t, int_t, doublecomplex *, doublecomplex *, doublecomplex *);
+void zmatvec2(int_t, int_t, int_t, doublecomplex*, doublecomplex*, doublecomplex*, doublecomplex*, doublecomplex*);
 
 void
 pzgstrf_bmod1D_mv2(
-		   const int pnum, /* process number */
-		   const int n,    /* number of rows in the matrix */
-		   const int w,    /* current panel width */
-		   const int jcol, /* leading column of the current panel */
-		   const int fsupc,/* leading column of the updating s-node */ 
-		   const int krep, /* last column of the updating s-node */ 
-		   const int nsupc,/* number of columns in the updating s-node */ 
-		   int nsupr, /* number of rows in the updating supernode */  
-		   int nrow,  /* number of rows below the diagonal block of
+		   const int_t pnum, /* process number */
+		   const int_t n,    /* number of rows in the matrix */
+		   const int_t w,    /* current panel width */
+		   const int_t jcol, /* leading column of the current panel */
+		   const int_t fsupc,/* leading column of the updating s-node */ 
+		   const int_t krep, /* last column of the updating s-node */ 
+		   const int_t nsupc,/* number of columns in the updating s-node */ 
+		   int_t nsupr, /* number of rows in the updating supernode */  
+		   int_t nrow,  /* number of rows below the diagonal block of
 				 the updating supernode */ 
-		   int *repfnz,    /* in */
-		   int *panel_lsub,/* modified */
-		   int *w_lsub_end,/* modified */
-		   int *spa_marker,/* modified; size n-by-w */
+		   int_t *repfnz,    /* in */
+		   int_t *panel_lsub,/* modified */
+		   int_t *w_lsub_end,/* modified */
+		   int_t *spa_marker,/* modified; size n-by-w */
 		   doublecomplex *dense,  /* modified */
 		   doublecomplex *tempv,  /* working array - zeros on entry/exit */
 		   GlobalLU_t *Glu,/* modified */
@@ -60,20 +60,20 @@ pzgstrf_bmod1D_mv2(
 #endif
 
     doublecomplex       ukj, ukj1, ukj2;
-    int          luptr, luptr1, luptr2;
-    int          segsze;
-    register int lptr; /* start of row subscripts of the updating supernode */
-    register int i, j, kfnz, krep_ind, isub, irow, no_zeros, twocols;
-    register int jj;	       /* index through each column in the panel */
-    int      kfnz2[2], jj2[2]; /* detect two identical columns */
-    int  *repfnz_col, *repfnz_col1; /* repfnz[] for a column in the panel */
+    int_t          luptr, luptr1, luptr2;
+    int		   segsze, nrow32 = nrow, nsupr32 = nsupr;
+    register int_t lptr; /* start of row subscripts of the updating supernode */
+    register int_t i, j, kfnz, krep_ind, isub, irow, no_zeros, twocols;
+    register int_t jj;	       /* index through each column in the panel */
+    int_t      kfnz2[2], jj2[2]; /* detect two identical columns */
+    int_t  *repfnz_col, *repfnz_col1; /* repfnz[] for a column in the panel */
     doublecomplex *dense_col, *dense_col1;  /* dense[] for a column in the panel */
     doublecomplex *tri[2], *matvec[2];
-    int  *col_marker, *col_marker1; /* each column of the spa_marker[*,w] */
-    int  *col_lsub, *col_lsub1;   /* each column of the panel_lsub[*,w] */
-    int          *lsub, *xlsub_end;
+    int_t  *col_marker, *col_marker1; /* each column of the spa_marker[*,w] */
+    int_t  *col_lsub, *col_lsub1;   /* each column of the panel_lsub[*,w] */
+    int_t          *lsub, *xlsub_end;
     doublecomplex	*lusup;
-    int          *xlusup;
+    int_t          *xlusup;
     register float flopcnt;
     
 #ifdef TIMING
@@ -240,13 +240,13 @@ if (krep == BADCOL && jj == -1) {
 #ifdef USE_VENDOR_BLAS
 #if ( MACH==CRAY_PVP )
 		    CTRSV( ftcs1, ftcs2, ftcs3, &segsze, &lusup[luptr], 
-			   &nsupr, tri[j], &incx );
+			   &nsupr32, tri[j], &incx );
 #else
 		    ztrsv_( "L", "N", "U", &segsze, &lusup[luptr], 
-			   &nsupr, tri[j], &incx );
+			   &nsupr32, tri[j], &incx );
 #endif
 #else
-		    zlsolve ( nsupr, segsze, &lusup[luptr], tri[j] );
+		    zlsolve ( nsupr, (int_t)segsze, &lusup[luptr], tri[j] );
 		    
 #endif
 
@@ -265,14 +265,14 @@ if (krep == BADCOL && jj == -1) {
 		    luptr = xlusup[fsupc] + nsupr * no_zeros + nsupc;
 #ifdef USE_VENDOR_BLAS		    
 #if ( MACH==CRAY_PVP )
-		    CGEMV( ftcs2, &nrow, &segsze, &alpha, &lusup[luptr], 
-			   &nsupr, tri[0], &incx, &beta, matvec[0], &incy );
+		    CGEMV( ftcs2, &nrow32, &segsze, &alpha, &lusup[luptr], 
+			   &nsupr32, tri[0], &incx, &beta, matvec[0], &incy );
 #else
-		    zgemv_( "N", &nrow, &segsze, &alpha, &lusup[luptr], 
-			   &nsupr, tri[0], &incx, &beta, matvec[0], &incy );
+		    zgemv_( "N", &nrow32, &segsze, &alpha, &lusup[luptr], 
+			   &nsupr32, tri[0], &incx, &beta, matvec[0], &incy );
 #endif
 #else
-		    zmatvec (nsupr, nrow, segsze, &lusup[luptr],
+		    zmatvec (nsupr, nrow, (int_t)segsze, &lusup[luptr],
 			     tri[0], matvec[0]);
 #endif
 		    
@@ -282,14 +282,14 @@ if (krep == BADCOL && jj == -1) {
 		    luptr = xlusup[fsupc] + nsupr * no_zeros + nsupc;
 #ifdef USE_VENDOR_BLAS		    
 #if ( MACH==CRAY_PVP )
-		    CGEMV( ftcs2, &nrow, &segsze, &alpha, &lusup[luptr], 
+		    CGEMV( ftcs2, &nrow32, &segsze, &alpha, &lusup[luptr], 
 			   &nsupr, tri[1], &incx, &beta, matvec[1], &incy );
 #else
-		    zgemv_( "N", &nrow, &segsze, &alpha, &lusup[luptr], 
-			   &nsupr, tri[1], &incx, &beta, matvec[1], &incy );
+		    zgemv_( "N", &nrow32, &segsze, &alpha, &lusup[luptr], 
+			   &nsupr32, tri[1], &incx, &beta, matvec[1], &incy );
 #endif
 #else
-		    zmatvec (nsupr, nrow, segsze, &lusup[luptr],
+		    zmatvec (nsupr, nrow, (int_t)segsze, &lusup[luptr],
 			     tri[1], matvec[1]);
 #endif
 		}
@@ -308,7 +308,7 @@ if (krep == BADCOL && jj == -1) {
 		       &tri[0][kfnz-kfnz2[0]], &tri[1][kfnz-kfnz2[1]],
 		       matvec[0], matvec[1]);*/
 #else
-		zmatvec2(nsupr, nrow, segsze, &lusup[luptr],
+		zmatvec2(nsupr, nrow, (int_t) segsze, &lusup[luptr],
 			 &tri[0][kfnz-kfnz2[0]], &tri[1][kfnz-kfnz2[1]],
 			 matvec[0], matvec[1]);
 #endif
@@ -392,10 +392,10 @@ if (krep == BADCOL && jj == -1) {
 #ifdef USE_VENDOR_BLAS
 #if ( MACH==CRAY_PVP )
 	CTRSV( ftcs1, ftcs2, ftcs3, &segsze, &lusup[luptr], 
-	       &nsupr, tri[0], &incx );
+	       &nsupr32, tri[0], &incx );
 #else
 	ztrsv_( "L", "N", "U", &segsze, &lusup[luptr], 
-	       &nsupr, tri[0], &incx );
+	       &nsupr32, tri[0], &incx );
 #endif
 #else
 	zlsolve ( nsupr, segsze, &lusup[luptr], tri[0] );
@@ -409,8 +409,8 @@ if (krep == BADCOL && jj == -1) {
 	CGEMV( ftcs2, &nrow, &segsze, &alpha, &lusup[luptr], 
 	       &nsupr, tri[0], &incx, &beta, matvec[0], &incy );
 #else
-	zgemv_( "N", &nrow, &segsze, &alpha, &lusup[luptr], 
-	       &nsupr, tri[0], &incx, &beta, matvec[0], &incy );
+	zgemv_( "N", &nrow32, &segsze, &alpha, &lusup[luptr], 
+	       &nsupr32, tri[0], &incx, &beta, matvec[0], &incy );
 #endif
 #else
 	zmatvec (nsupr, nrow, segsze, &lusup[luptr], tri[0], matvec[0]);

@@ -1,7 +1,8 @@
 #include "slu_mt_machines.h"
+#include "slu_mt_ddefs.h"
 
-int
-sp_ienv(int ispec)
+int_t
+sp_ienv(int_t ispec)
 {
 /*
  * -- SuperLU MT routine (version 1.0) --
@@ -59,6 +60,7 @@ sp_ienv(int ispec)
  *  ===================================================================== 
  */
     int i;
+    extern int  xerbla_ (char *, int *);
 
     switch (ispec) {
 

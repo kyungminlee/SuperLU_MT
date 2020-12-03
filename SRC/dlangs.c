@@ -1,6 +1,6 @@
 
 /*
- * -- SuperLU routine (version 2.0) --
+ * -- SuperLU routine (version 3.0) --
  * Lawrence Berkeley National Lab, Univ. of California Berkeley,
  * and Xerox Palo Alto Research Center.
  * September 10, 2007
@@ -11,7 +11,7 @@
  * History:     Modified from lapack routine DLANGE
  */
 #include <math.h>
-#include "pdsp_defs.h"
+#include "slu_mt_ddefs.h"
 
 
 double dlangs(char *norm, SuperMatrix *A)
@@ -56,7 +56,7 @@ double dlangs(char *norm, SuperMatrix *A)
     /* Local variables */
     NCformat *Astore;
     double   *Aval;
-    int      i, j, irow;
+    int_t      i, j, irow;
     double   value, sum;
     double   *rwork;
 
