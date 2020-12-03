@@ -1,3 +1,13 @@
+/*! \file
+Copyright (c) 2003, The Regents of the University of California, through
+Lawrence Berkeley National Laboratory (subject to receipt of any required 
+approvals from U.S. Dept. of Energy) 
+
+All rights reserved. 
+
+The source code is distributed under BSD license, see the file License.txt
+at the top-level directory.
+*/
 
 /*
  * -- SuperLU MT routine (version 3.0) --
@@ -80,6 +90,12 @@ main(int argc, char *argv[])
     
     if (!(perm_r = intMalloc(m))) SUPERLU_ABORT("Malloc fails for perm_r[].");
     if (!(perm_c = intMalloc(n))) SUPERLU_ABORT("Malloc fails for perm_c[].");
+    if ( !(superlumt_options.etree = intMalloc(n)) )
+	SUPERLU_ABORT("Malloc fails for etree[].");
+    if ( !(superlumt_options.colcnt_h = intMalloc(n)) )
+	SUPERLU_ABORT("Malloc fails for colcnt_h[].");
+    if ( !(superlumt_options.part_super_h = intMalloc(n)) )
+	SUPERLU_ABORT("Malloc fails for colcnt_h[].");
 
     /********************************
      * THE FIRST TIME FACTORIZATION *

@@ -1,3 +1,13 @@
+/*! \file
+Copyright (c) 2003, The Regents of the University of California, through
+Lawrence Berkeley National Laboratory (subject to receipt of any required 
+approvals from U.S. Dept. of Energy) 
+
+All rights reserved. 
+
+The source code is distributed under BSD license, see the file License.txt
+at the top-level directory.
+*/
 /*
  * -- SuperLU MT routine (version 2.0) --
  * Lawrence Berkeley National Lab, Univ. of California Berkeley,
@@ -12,7 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "slu_mt_machines.h"
 
 /* Macros */
 #ifndef USER_ABORT
@@ -425,6 +435,7 @@ flops_t *trsv_ops;      /* flops distribution on n */
 extern "C" {
 #endif
 
+extern int  cpp_defs();
 extern int  xerbla_ (char *, int *);
 extern void superlu_abort_and_exit(char*);
 extern void *superlu_malloc (size_t);

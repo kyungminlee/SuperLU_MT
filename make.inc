@@ -41,9 +41,9 @@ RANLIB       	= ranlib
 PREDEFS      	= -D__PTHREAD  ## -DDEBUGlevel=0 -DPRNTlevel=0
 #
 CC           	= gcc
-CFLAGS       	= $(PREDEFS) -O3
+CFLAGS       	= $(PREDEFS) -g #-O3
 # Uncomment the following to use 64-bit integer
-# CFLAGS          += -D_LONGINT
+CFLAGS          += -D_LONGINT
 
 #
 # There are a few files that should NOT be optimized, which appear in the
@@ -56,9 +56,7 @@ BLASOPTS	=
 ############################################################################
 
 FORTRAN		= gfortran
-FFLAGS		= -O 
-# Uncomment the following to use 64-bit integer
-# FFLAGS         += -fdefault-integer-8
+FFLAGS		= -O -fdefault-integer-8
 
 ############################################################################
 

@@ -1,3 +1,13 @@
+/*! \file
+Copyright (c) 2003, The Regents of the University of California, through
+Lawrence Berkeley National Laboratory (subject to receipt of any required 
+approvals from U.S. Dept. of Energy) 
+
+All rights reserved. 
+
+The source code is distributed under BSD license, see the file License.txt
+at the top-level directory.
+*/
 
 /*
  * -- SuperLU MT routine (version 3.0) --
@@ -72,6 +82,7 @@ main(int argc, char *argv[])
 
 #if ( PRNTlevel==1 )
     cpp_defs();
+    printf("int_t %d bytes\n", sizeof(int_t));
 #endif
 
 #define HB
@@ -92,7 +103,7 @@ main(int argc, char *argv[])
 #elif defined( HB )
     zreadhb(&m, &n, &nnz, &a, &asub, &xa);
 #else    
-    zreadmt(&m, &n, &nnz, &a, &asub, &xa);
+    zreadtriple(&m, &n, &nnz, &a, &asub, &xa);
 #endif
 
     firstfact = (fact == FACTORED || refact == YES);
@@ -112,7 +123,7 @@ main(int argc, char *argv[])
     
     if (!(perm_r = intMalloc(m))) SUPERLU_ABORT("Malloc fails for perm_r[].");
     if (!(perm_c = intMalloc(n))) SUPERLU_ABORT("Malloc fails for perm_c[].");
-    if (!(R = (double *) SUPERLU_MALLOC(A.nrow * sizeof(double)))) 
+    if ( !(R = (double *) SUPERLU_MALLOC(A.nrow * sizeof(double))) ) 
         SUPERLU_ABORT("SUPERLU_MALLOC fails for R[].");
     if ( !(C = (double *) SUPERLU_MALLOC(A.ncol * sizeof(double))) )
         SUPERLU_ABORT("SUPERLU_MALLOC fails for C[].");
@@ -166,7 +177,7 @@ main(int argc, char *argv[])
 	    &equed, R, C, &L, &U, &B, &X, &rpg, &rcond,
 	    ferr, berr, &superlu_memusage, &info);
 
-    printf("pzgssvx(): info " IFMT "\n", info);
+    printf("psgssvx(): info " IFMT "\n", info);
 
     if ( info == 0 || info == n+1 ) {
 

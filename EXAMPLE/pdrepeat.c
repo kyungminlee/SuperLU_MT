@@ -1,3 +1,13 @@
+/*! \file
+Copyright (c) 2003, The Regents of the University of California, through
+Lawrence Berkeley National Laboratory (subject to receipt of any required 
+approvals from U.S. Dept. of Energy) 
+
+All rights reserved. 
+
+The source code is distributed under BSD license, see the file License.txt
+at the top-level directory.
+*/
 
 /*
  * -- SuperLU MT routine (version 3.0) --
@@ -188,6 +198,9 @@ main(int argc, char *argv[])
     SUPERLU_FREE (xact);
     SUPERLU_FREE (perm_r);
     SUPERLU_FREE (perm_c);
+    SUPERLU_FREE (superlumt_options.etree);
+    SUPERLU_FREE (superlumt_options.colcnt_h);
+    SUPERLU_FREE (superlumt_options.part_super_h);
     Destroy_CompCol_Matrix(&A);
     Destroy_SuperMatrix_Store(&B);
     if ( lwork == 0 ) {
